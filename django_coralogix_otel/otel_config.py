@@ -101,21 +101,33 @@ def get_resource():
     # Get Django settings if available
     try:
         from django.conf import settings
-        custom_config = getattr(settings, 'DJANGO_CORALOGIX_OTEL', {})
+
+        custom_config = getattr(settings, "DJANGO_CORALOGIX_OTEL", {})
     except ImportError:
         custom_config = {}
 
     resource_attrs = {
-        SERVICE_NAME: os.getenv("OTEL_SERVICE_NAME", custom_config.get('SERVICE_NAME', 'django-service')),
-        SERVICE_VERSION: os.getenv("OTEL_SERVICE_VERSION", custom_config.get('SERVICE_VERSION', '1.0.0')),
+        SERVICE_NAME: os.getenv(
+            "OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service")
+        ),
+        SERVICE_VERSION: os.getenv(
+            "OTEL_SERVICE_VERSION", custom_config.get("SERVICE_VERSION", "1.0.0")
+        ),
         "service.namespace": os.getenv("OTEL_SERVICE_NAMESPACE", "default"),
-        "deployment.environment": os.getenv("APP_ENVIRONMENT", custom_config.get('ENVIRONMENT', 'local')),
-        "cx.application.name": os.getenv("OTEL_SERVICE_NAME", custom_config.get('SERVICE_NAME', 'django-service')),
-        "cx.subsystem.name": os.getenv("OTEL_SERVICE_NAME", custom_config.get('SERVICE_NAME', 'django-service')) + "-backend",
+        "deployment.environment": os.getenv(
+            "APP_ENVIRONMENT", custom_config.get("ENVIRONMENT", "local")
+        ),
+        "cx.application.name": os.getenv(
+            "OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service")
+        ),
+        "cx.subsystem.name": os.getenv(
+            "OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service")
+        )
+        + "-backend",
     }
 
     # Add custom resource attributes
-    custom_attrs = custom_config.get('CUSTOM_RESOURCE_ATTRIBUTES', {})
+    custom_attrs = custom_config.get("CUSTOM_RESOURCE_ATTRIBUTES", {})
     resource_attrs.update(custom_attrs)
 
     return Resource.create(resource_attrs)
@@ -143,15 +155,15 @@ def setup_tracing():
         # Production: OTLP exporter
         try:
             exporter_kwargs = {"endpoint": otlp_endpoint}
-            
+
             # Add headers for authentication if provided
             if otlp_headers:
                 headers = {}
-                for header in otlp_headers.split(','):
-                    key, value = header.split('=', 1)
+                for header in otlp_headers.split(","):
+                    key, value = header.split("=", 1)
                     headers[key.strip()] = value.strip()
                 exporter_kwargs["headers"] = headers
-            
+
             otlp_exporter = OTLPSpanExporter(**exporter_kwargs)
             span_processor = BatchSpanProcessor(otlp_exporter)
             tracer_provider.add_span_processor(span_processor)
@@ -187,15 +199,15 @@ def setup_metrics():
         # Production: OTLP exporter
         try:
             exporter_kwargs = {"endpoint": otlp_endpoint}
-            
+
             # Add headers for authentication if provided
             if otlp_headers:
                 headers = {}
-                for header in otlp_headers.split(','):
-                    key, value = header.split('=', 1)
+                for header in otlp_headers.split(","):
+                    key, value = header.split("=", 1)
                     headers[key.strip()] = value.strip()
                 exporter_kwargs["headers"] = headers
-            
+
             metric_reader = PeriodicExportingMetricReader(
                 OTLPMetricExporter(**exporter_kwargs),
                 export_interval_millis=30000,  # 30 seconds
@@ -237,7 +249,8 @@ def setup_instrumentation():
         # Get Django settings if available
         try:
             from django.conf import settings
-            custom_config = getattr(settings, 'DJANGO_CORALOGIX_OTEL', {})
+
+            custom_config = getattr(settings, "DJANGO_CORALOGIX_OTEL", {})
         except ImportError:
             custom_config = {}
 
@@ -257,9 +270,12 @@ def setup_instrumentation():
             logger.info("Requests instrumentation enabled")
 
         # Kafka instrumentation (if enabled)
-        if custom_config.get('ENABLE_KAFKA_INSTRUMENTATION', True):
+        if custom_config.get("ENABLE_KAFKA_INSTRUMENTATION", True):
             try:
-                from opentelemetry.instrumentation.kafka_python import KafkaPythonInstrumentor
+                from opentelemetry.instrumentation.kafka_python import (
+                    KafkaPythonInstrumentor,
+                )
+
                 if not KafkaPythonInstrumentor().is_instrumented_by_opentelemetry:
                     KafkaPythonInstrumentor().instrument()
                     logger.info("Kafka Python instrumentation enabled")
@@ -277,19 +293,19 @@ def setup_instrumentation():
             # Setup OTLP log exporter for structured logging
             otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
             otlp_headers = os.getenv("OTEL_EXPORTER_OTLP_HEADERS")
-            
+
             if otlp_endpoint:
                 try:
                     exporter_kwargs = {"endpoint": otlp_endpoint}
-                    
+
                     # Add headers for authentication if provided
                     if otlp_headers:
                         headers = {}
-                        for header in otlp_headers.split(','):
-                            key, value = header.split('=', 1)
+                        for header in otlp_headers.split(","):
+                            key, value = header.split("=", 1)
                             headers[key.strip()] = value.strip()
                         exporter_kwargs["headers"] = headers
-                    
+
                     logger_provider = LoggerProvider(resource=get_resource())
                     log_exporter = OTLPLogExporter(**exporter_kwargs)
                     logger_provider.add_log_record_processor(

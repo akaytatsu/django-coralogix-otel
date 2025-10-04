@@ -8,11 +8,12 @@ import os
 
 def get_logging_config():
     """Get logging configuration with OpenTelemetry integration."""
-    
+
     # Get Django settings if available
     try:
         from django.conf import settings
-        custom_config = getattr(settings, 'DJANGO_CORALOGIX_OTEL', {})
+
+        custom_config = getattr(settings, "DJANGO_CORALOGIX_OTEL", {})
     except ImportError:
         custom_config = {}
 
@@ -63,12 +64,14 @@ def get_logging_config():
     }
 
     # Add custom loggers from configuration
-    custom_loggers = custom_config.get('CUSTOM_LOGGERS', {})
+    custom_loggers = custom_config.get("CUSTOM_LOGGERS", {})
     if custom_loggers:
-        logging_config['loggers'].update(custom_loggers)
+        logging_config["loggers"].update(custom_loggers)
 
     # Use verbose formatter for local development
-    environment = os.getenv("APP_ENVIRONMENT", custom_config.get('ENVIRONMENT', 'local'))
+    environment = os.getenv(
+        "APP_ENVIRONMENT", custom_config.get("ENVIRONMENT", "local")
+    )
     if environment == "local":
         logging_config["handlers"]["console"]["formatter"] = "verbose"
 

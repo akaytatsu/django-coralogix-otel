@@ -7,41 +7,48 @@
 
 ### Instalação e Setup
 ```bash
-# Instalar em modo desenvolvimento
-pip install -e .[dev]
+# Usando Makefile (recomendado)
+make install-dev        # Instala dependências de desenvolvimento
+make setup-dev          # Setup completo do ambiente
+make create-venv        # Cria ambiente virtual
 
-# Setup rápido (cria venv e instala dependências)
+# Manualmente
+pip install -e .[dev]
 ./setup_dev.sh
 
 # Build do pacote
+make build
 python -m build
 ```
 
 ### Testes
 ```bash
-# Executar todos os testes
+# Usando Makefile (recomendado)
+make test               # Executar todos os testes
+make test-verbose       # Executar em modo verbose
+make test-cov           # Executar com cobertura HTML
+make test-watch         # Executar automaticamente ao alterar arquivos
+
+# Manualmente
 pytest
-
-# Executar teste específico
 pytest tests/test_file.py::test_function_name
-
-# Executar com cobertura
 pytest --cov=django_coralogix_otel
-
-# Executar em modo verbose
 pytest -v
 ```
 
 ### Lint e Formatação
 ```bash
-# Formatar código
+# Usando Makefile (recomendado)
+make format             # Formatar código (black + isort)
+make lint               # Verificar código (flake8)
+make check-code         # Verificar formatação e lint
+make quality            # Executar tudo (format + lint + test)
+make pre-commit         # Verificações completas de pre-commit
+
+# Manualmente
 black .
 isort .
-
-# Lint
 flake8 .
-
-# Executar tudo (lint + format + test)
 black . && isort . && flake8 . && pytest
 ```
 
@@ -59,7 +66,7 @@ black . && isort . && flake8 . && pytest
 - Privados: prefixo `_` (ex: `_get_config()`)
 
 ### Formatação
-- Usar `black` para formatação automática (linha máxima 88 caracteres)
+- Usar `black` para formatação automática (linha máxima 120 caracteres)
 - `flake8` para linting (configuração padrão)
 - Docstrings seguindo estilo Google ou Sphinx
 
@@ -86,3 +93,25 @@ black . && isort . && flake8 . && pytest
 - Incluir trace_id e span_id quando disponível
 - Níveis apropriados: ERROR para falhas, WARNING para problemas, INFO para geral
 - Evitar logs sensíveis (senhas, tokens)
+
+## 🚀 Comandos Úteis do Makefile
+
+```bash
+# Ajuda
+make help              # Mostra todos os comandos disponíveis
+
+# Publicação
+make publish           # Publicar no PyPI
+make publish-test      # Publicar no PyPI de teste
+make release-patch     # Release automático de versão patch
+
+# Limpeza
+make clean             # Limpa arquivos temporários
+make deep-clean        # Limpeza completa incluindo venv
+
+# Segurança
+make security-check    # Verifica vulnerabilidades
+
+# Versão
+make version           # Mostra versão atual
+```

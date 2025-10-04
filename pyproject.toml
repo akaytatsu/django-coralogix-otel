@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-coralogix-otel"
+version = "1.0.0"
+description = "Pacote Django para integração simplificada de OpenTelemetry com Coralogix"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Seu Nome", email = "seu.email@example.com"}
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: Django",
+    "Framework :: Django :: 3.2",
+    "Framework :: Django :: 4.0",
+    "Framework :: Django :: 4.1",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.0",
+    "Framework :: Django :: 5.1",
+    "Framework :: Django :: 5.2",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "opentelemetry-distro[otlp]>=0.47b0",
+    "opentelemetry-instrumentation>=0.47b0",
+    "opentelemetry-instrumentation-django>=0.47b0",
+    "opentelemetry-instrumentation-psycopg2>=0.47b0",
+    "opentelemetry-instrumentation-requests>=0.47b0",
+    "opentelemetry-instrumentation-logging>=0.47b0",
+    "opentelemetry-instrumentation-wsgi>=0.47b0",
+    "opentelemetry-instrumentation-asgi>=0.47b0",
+    "opentelemetry-instrumentation-kafka-python>=0.47b0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-django",
+    "black",
+    "flake8",
+    "isort",
+    "django",
+]
+
+[project.urls]
+Homepage = "https://github.com/seu-usuario/django-coralogix-otel"
+Repository = "https://github.com/seu-usuario/django-coralogix-otel"
+Documentation = "https://github.com/seu-usuario/django-coralogix-otel#readme"
+"Bug Tracker" = "https://github.com/seu-usuario/django-coralogix-otel/issues"
+
+[project.scripts]
+django-coralogix-otel-run = "scripts.django-coralogix-otel-run:main"
+
+[tool.setuptools]
+packages = ["django_coralogix_otel"]
+
+[tool.setuptools.package-data]
+django_coralogix_otel = ["*.py"]

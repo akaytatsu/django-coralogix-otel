@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# django-coralogix-otel-run
+# Script para inicializar aplicação Django com OpenTelemetry e Coralogix
+# Uso: django-coralogix-otel-run <command> [args]
+
+set -e
+
+echo "Starting Django application with OpenTelemetry and Coralogix instrumentation..."
+
+# Verificar se as variáveis de ambiente necessárias estão definidas
+if [ -z "$OTEL_SERVICE_NAME" ]; then
+    echo "Warning: OTEL_SERVICE_NAME not set, using default 'django-service'"
+    export OTEL_SERVICE_NAME="django-service"
+fi
+
+if [ -z "$OTEL_EXPORTER_OTLP_ENDPOINT" ]; then
+    echo "Warning: OTEL_EXPORTER_OTLP_ENDPOINT not set, using console exporters"
+fi
+
+# Configurar auto-instrumentação
+export OTEL_PYTHON_INSTRUMENTATION_ENABLED=true
+
+# Habilitar instrumentações específicas
+export OTEL_PYTHON_DJANGO_INSTRUMENT=true
+export OTEL_PYTHON_REQUESTS_INSTRUMENT=true
+export OTEL_PYTHON_PSYCOPG2_INSTRUMENT=true
+export OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+
+# Configurar logs estruturados com trace context
+export OTEL_PYTHON_LOG_CORRELATION=true
+export OTEL_LOG_LEVEL=INFO
+
+# Configurações adicionais do OpenTelemetry
+export OTEL_TRACES_EXPORTER=otlp
+export OTEL_METRICS_EXPORTER=otlp
+export OTEL_LOGS_EXPORTER=otlp
+
+# Propagators
+export OTEL_PROPAGATORS=tracecontext,baggage
+
+# Configurar sampling
+export OTEL_TRACES_SAMPLER=${OTEL_TRACES_SAMPLER:-always_on}
+
+# Configurações de batch para melhor performance
+export OTEL_BSP_SCHEDULE_DELAY=${OTEL_BSP_SCHEDULE_DELAY:-5000}
+export OTEL_BSP_MAX_QUEUE_SIZE=${OTEL_BSP_MAX_QUEUE_SIZE:-2048}
+export OTEL_BSP_MAX_EXPORT_BATCH_SIZE=${OTEL_BSP_MAX_EXPORT_BATCH_SIZE:-512}
+export OTEL_BSP_EXPORT_TIMEOUT=${OTEL_BSP_EXPORT_TIMEOUT:-30000}
+
+# Configurações de métricas
+export OTEL_METRIC_EXPORT_INTERVAL=${OTEL_METRIC_EXPORT_INTERVAL:-30000}
+
+# Se for desenvolvimento local, usar console exporter
+if [ "$APP_ENVIRONMENT" = "local" ] && [ -z "$OTEL_EXPORTER_OTLP_ENDPOINT" ]; then
+    echo "Local development detected, using console exporters"
+    export OTEL_TRACES_EXPORTER=console
+    export OTEL_METRICS_EXPORTER=console
+    export OTEL_LOGS_EXPORTER=console
+fi
+
+# Executar o comando com OpenTelemetry
+echo "Executing: opentelemetry-instrument $@"
+exec opentelemetry-instrument "$@"

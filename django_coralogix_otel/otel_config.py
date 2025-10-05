@@ -123,11 +123,15 @@ def setup_metrics():
     - OTEL_METRIC_EXPORT_INTERVAL
     """
     # Let SDK handle all standard configuration automatically
-    current_provider = metrics.get_meter_provider()
-    if hasattr(current_provider, "resource") and current_provider.resource:
-        logger.info("MeterProvider already configured")
-        return
-
+    try:
+        from opentelemetry import metrics
+        current_provider = metrics.get_meter_provider()
+        if hasattr(current_provider, "resource") and current_provider.resource:
+            logger.info("MeterProvider already configured")
+            return
+    except ImportError:
+        logger.warning("OpenTelemetry metrics module not available")
+    
     # SDK will read environment variables automatically
     logger.info("OpenTelemetry metrics configured via environment variables")
 

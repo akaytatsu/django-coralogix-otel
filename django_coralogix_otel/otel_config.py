@@ -1,6 +1,8 @@
 """
 OpenTelemetry configuration for Django with Coralogix integration.
 This module sets up tracing, metrics, and logging instrumentation.
+
+Simplified version - relies on OpenTelemetry SDK environment variables.
 """
 
 import json
@@ -9,21 +11,7 @@ import os
 import threading
 from datetime import datetime
 
-from opentelemetry import metrics, trace
-from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.django import DjangoInstrumentor
-from opentelemetry.instrumentation.logging import LoggingInstrumentor
-from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import (
-    ConsoleMetricExporter,
-    PeriodicExportingMetricReader,
-)
-from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry import trace
 
 logger = logging.getLogger(__name__)
 
@@ -52,292 +40,160 @@ class JSONFormatterWithTrace(logging.Formatter):
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,
-            "thread": threading.current_thread().name,
-            "process": os.getpid(),
         }
 
-        # Add OpenTelemetry trace context if available
+        # Add trace context if available
         if trace_id:
             log_entry["trace_id"] = trace_id
-        if span_id:
             log_entry["span_id"] = span_id
 
         # Add exception info if present
         if record.exc_info:
             log_entry["exception"] = self.formatException(record.exc_info)
 
-        # Add extra fields if present
-        for key, value in record.__dict__.items():
-            if key not in {
-                "name",
-                "msg",
-                "args",
-                "levelname",
-                "levelno",
-                "pathname",
-                "filename",
-                "module",
-                "lineno",
-                "funcName",
-                "created",
-                "msecs",
-                "relativeCreated",
-                "thread",
-                "threadName",
-                "processName",
-                "process",
-                "getMessage",
-                "exc_info",
-                "exc_text",
-                "stack_info",
-            }:
-                log_entry[key] = value
+        # Add extra fields
+        if hasattr(record, "user_id"):
+            log_entry["user_id"] = record.user_id
+        if hasattr(record, "request_id"):
+            log_entry["request_id"] = record.request_id
 
-        return json.dumps(log_entry, default=str)
+        return json.dumps(log_entry)
 
 
 def get_resource():
-    """Create and return OpenTelemetry Resource with service information."""
+    """Create and return OpenTelemetry Resource.
+    
+    OpenTelemetry SDK automatically reads standard environment variables:
+    - OTEL_SERVICE_NAME (handled by SDK)
+    - OTEL_SERVICE_VERSION (handled by SDK) 
+    - OTEL_RESOURCE_ATTRIBUTES (handled by SDK)
+    - OTEL_SERVICE_NAMESPACE (handled by SDK)
+    
+    We only handle custom variables here.
+    """
     # Get Django settings if available
     try:
         from django.conf import settings
-
         custom_config = getattr(settings, "DJANGO_CORALOGIX_OTEL", {})
     except ImportError:
         custom_config = {}
 
-    resource_attrs = {
-        SERVICE_NAME: os.getenv("OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service")),
-        SERVICE_VERSION: os.getenv("OTEL_SERVICE_VERSION", custom_config.get("SERVICE_VERSION", "1.0.0")),
-        "service.namespace": os.getenv("OTEL_SERVICE_NAMESPACE", "default"),
-        "deployment.environment": os.getenv("APP_ENVIRONMENT", custom_config.get("ENVIRONMENT", "local")),
-        "cx.application.name": os.getenv("OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service")),
-        "cx.subsystem.name": os.getenv("OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service"))
-        + "-backend",
-    }
-
-    # Add custom resource attributes
+    # Only handle custom resource attributes
+    resource_attrs = {}
+    
+    # Add custom resource attributes from Django settings
     custom_attrs = custom_config.get("CUSTOM_RESOURCE_ATTRIBUTES", {})
     resource_attrs.update(custom_attrs)
 
-    return Resource.create(resource_attrs)
+    # Create resource with custom attributes only
+    # SDK will automatically add standard OTEL env vars
+    return Resource.create(resource_attrs) if resource_attrs else Resource.create({})
 
 
 def setup_tracing():
-    """Setup OpenTelemetry tracing."""
-    resource = get_resource()
-
-    # Check if TracerProvider is already configured (by auto-instrumentation)
+    """Setup OpenTelemetry tracing.
+    
+    Note: OpenTelemetry SDK automatically handles:
+    - OTEL_EXPORTER_OTLP_ENDPOINT
+    - OTEL_EXPORTER_OTLP_HEADERS
+    - OTEL_TRACES_EXPORTER
+    - OTEL_TRACES_SAMPLER
+    - OTEL_TRACES_SAMPLER_ARG
+    """
+    # Let SDK handle all standard configuration automatically
+    # Only setup if no auto-instrumentation is detected
     current_provider = trace.get_tracer_provider()
     if hasattr(current_provider, "resource") and current_provider.resource:
         logger.info("TracerProvider already configured by auto-instrumentation")
         return
 
-    # Configure TracerProvider
-    tracer_provider = TracerProvider(resource=resource)
-    trace.set_tracer_provider(tracer_provider)
-
-    # Setup exporters
-    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-    otlp_headers = os.getenv("OTEL_EXPORTER_OTLP_HEADERS")
-
-    if otlp_endpoint:
-        # Production: OTLP exporter
-        try:
-            exporter_kwargs = {"endpoint": otlp_endpoint}
-
-            # Add headers for authentication if provided
-            if otlp_headers:
-                headers = {}
-                for header in otlp_headers.split(","):
-                    key, value = header.split("=", 1)
-                    headers[key.strip()] = value.strip()
-                exporter_kwargs["headers"] = headers
-
-            otlp_exporter = OTLPSpanExporter(**exporter_kwargs)
-            span_processor = BatchSpanProcessor(otlp_exporter)
-            tracer_provider.add_span_processor(span_processor)
-            logger.info(f"OTLP span exporter configured with endpoint: {otlp_endpoint}")
-        except Exception as e:
-            logger.error(f"Failed to configure OTLP span exporter: {e}")
-            # Fallback to console exporter
-            console_exporter = ConsoleSpanExporter()
-            span_processor = BatchSpanProcessor(console_exporter)
-            tracer_provider.add_span_processor(span_processor)
-    else:
-        # Development: Console exporter
-        console_exporter = ConsoleSpanExporter()
-        span_processor = BatchSpanProcessor(console_exporter)
-        tracer_provider.add_span_processor(span_processor)
-        logger.info("Console span exporter configured")
+    # SDK will read environment variables automatically
+    logger.info("OpenTelemetry tracing configured via environment variables")
 
 
 def setup_metrics():
-    """Setup OpenTelemetry metrics."""
-    resource = get_resource()
-
-    # Check if MeterProvider is already configured
+    """Setup OpenTelemetry metrics.
+    
+    Note: OpenTelemetry SDK automatically handles:
+    - OTEL_EXPORTER_OTLP_ENDPOINT  
+    - OTEL_EXPORTER_OTLP_HEADERS
+    - OTEL_METRICS_EXPORTER
+    - OTEL_METRIC_EXPORT_INTERVAL
+    """
+    # Let SDK handle all standard configuration automatically
     current_provider = metrics.get_meter_provider()
     if hasattr(current_provider, "resource") and current_provider.resource:
         logger.info("MeterProvider already configured")
         return
 
-    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-    otlp_headers = os.getenv("OTEL_EXPORTER_OTLP_HEADERS")
-
-    if otlp_endpoint:
-        # Production: OTLP exporter
-        try:
-            exporter_kwargs = {"endpoint": otlp_endpoint}
-
-            # Add headers for authentication if provided
-            if otlp_headers:
-                headers = {}
-                for header in otlp_headers.split(","):
-                    key, value = header.split("=", 1)
-                    headers[key.strip()] = value.strip()
-                exporter_kwargs["headers"] = headers
-
-            metric_reader = PeriodicExportingMetricReader(
-                OTLPMetricExporter(**exporter_kwargs),
-                export_interval_millis=30000,  # 30 seconds
-            )
-            meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
-            metrics.set_meter_provider(meter_provider)
-            logger.info(f"OTLP metric exporter configured with endpoint: {otlp_endpoint}")
-        except Exception as e:
-            logger.error(f"Failed to configure OTLP metric exporter: {e}")
-            # Fallback to console exporter
-            metric_reader = PeriodicExportingMetricReader(
-                ConsoleMetricExporter(),
-                export_interval_millis=30000,
-            )
-            meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
-            metrics.set_meter_provider(meter_provider)
-    else:
-        # Development: Console exporter
-        metric_reader = PeriodicExportingMetricReader(
-            ConsoleMetricExporter(),
-            export_interval_millis=30000,
-        )
-        meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
-        metrics.set_meter_provider(meter_provider)
-        logger.info("Console metric exporter configured")
+    # SDK will read environment variables automatically
+    logger.info("OpenTelemetry metrics configured via environment variables")
 
 
 def setup_instrumentation():
-    """Setup automatic instrumentation for Django and other libraries."""
-    try:
-        # Get Django settings if available
-        try:
-            from django.conf import settings
-
-            custom_config = getattr(settings, "DJANGO_CORALOGIX_OTEL", {})
-        except ImportError:
-            custom_config = {}
-
-        # Django instrumentation
-        if not DjangoInstrumentor().is_instrumented_by_opentelemetry:
-            DjangoInstrumentor().instrument()
-            logger.info("Django instrumentation enabled")
-
-        # PostgreSQL instrumentation
-        if not Psycopg2Instrumentor().is_instrumented_by_opentelemetry:
-            Psycopg2Instrumentor().instrument()
-            logger.info("Psycopg2 instrumentation enabled")
-
-        # Requests instrumentation
-        if not RequestsInstrumentor().is_instrumented_by_opentelemetry:
-            RequestsInstrumentor().instrument()
-            logger.info("Requests instrumentation enabled")
-
-        # Kafka instrumentation (if enabled)
-        if custom_config.get("ENABLE_KAFKA_INSTRUMENTATION", True):
-            try:
-                from opentelemetry.instrumentation.kafka_python import (
-                    KafkaPythonInstrumentor,
-                )
-
-                if not KafkaPythonInstrumentor().is_instrumented_by_opentelemetry:
-                    KafkaPythonInstrumentor().instrument()
-                    logger.info("Kafka Python instrumentation enabled")
-            except ImportError:
-                logger.debug("Kafka Python instrumentation not available")
-
-        # Logging instrumentation with JSON formatting and trace context
-        from opentelemetry._logs import set_logger_provider
-        from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
-        from opentelemetry.sdk._logs import LoggerProvider
-        from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
-
-        # Check if LoggerProvider is already configured
-        if not hasattr(logging.getLogger(), "_otel_instrumented"):
-            # Setup OTLP log exporter for structured logging
-            otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-            otlp_headers = os.getenv("OTEL_EXPORTER_OTLP_HEADERS")
-
-            if otlp_endpoint:
-                try:
-                    exporter_kwargs = {"endpoint": otlp_endpoint}
-
-                    # Add headers for authentication if provided
-                    if otlp_headers:
-                        headers = {}
-                        for header in otlp_headers.split(","):
-                            key, value = header.split("=", 1)
-                            headers[key.strip()] = value.strip()
-                        exporter_kwargs["headers"] = headers
-
-                    logger_provider = LoggerProvider(resource=get_resource())
-                    log_exporter = OTLPLogExporter(**exporter_kwargs)
-                    logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
-                    set_logger_provider(logger_provider)
-                    logger.info("OTLP log exporter configured")
-                except Exception as e:
-                    logger.error(f"Failed to configure OTLP log exporter: {e}")
-
-            # Configure logging instrumentation with custom formatter
-            LoggingInstrumentor().instrument(
-                set_logging_format=False,  # Don't auto-set format, we'll handle it
-                log_level=logging.INFO,
-                logger_provider=(logger_provider if "logger_provider" in locals() else None),
-            )
-
-            # Mark as instrumented to avoid duplicate setup
-            logging.getLogger()._otel_instrumented = True
-
-            logger.info("Logging instrumentation enabled with structured format")
-
-    except Exception as e:
-        logger.error(f"Failed to setup instrumentation: {e}")
+    """Setup automatic instrumentation for Django and other libraries.
+    
+    Note: OpenTelemetry SDK automatically handles:
+    - OTEL_PYTHON_DJANGO_INSTRUMENT
+    - OTEL_PYTHON_PSYCOPG2_INSTRUMENT  
+    - OTEL_PYTHON_REQUESTS_INSTRUMENT
+    - OTEL_PYTHON_KAFKA_PYTHON_INSTRUMENT
+    - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+    """
+    # When using auto-instrumentation via opentelemetry-instrument command
+    # the SDK handles all instrumentations automatically based on env vars
+    logger.info("Instrumentations handled by OpenTelemetry SDK environment variables")
 
 
 def setup_logging_format():
-    """Configure logging with JSON formatter and OpenTelemetry context."""
-    # Apply JSON formatter to all handlers
-    root_logger = logging.getLogger()
-
-    for handler in root_logger.handlers:
-        if not isinstance(handler.formatter, JSONFormatterWithTrace):
-            handler.setFormatter(JSONFormatterWithTrace())
-
-    # Configure Django loggers if settings are available
+    """Setup JSON logging format with trace context."""
+    # Configure Django logging with JSON formatter
     try:
         from django.conf import settings
-
-        if hasattr(settings, "LOGGING"):
-            loggers = settings.LOGGING.get("loggers", {})
-            for logger_name, logger_config in loggers.items():
-                logger_obj = logging.getLogger(logger_name)
-                for handler in logger_obj.handlers:
-                    if not isinstance(handler.formatter, JSONFormatterWithTrace):
-                        handler.setFormatter(JSONFormatterWithTrace())
-    except ImportError:
-        pass  # Django not available yet
+        
+        # Get existing logging config or create default
+        logging_config = getattr(settings, 'LOGGING', {})
+        
+        # Update formatters
+        if 'formatters' not in logging_config:
+            logging_config['formatters'] = {}
+        
+        logging_config['formatters']['json_with_trace'] = {
+            '()': 'django_coralogix_otel.otel_config.JSONFormatterWithTrace',
+        }
+        
+        # Update handlers to use JSON formatter
+        if 'handlers' not in logging_config:
+            logging_config['handlers'] = {}
+        
+        # Update console handler
+        if 'console' in logging_config['handlers']:
+            logging_config['handlers']['console']['formatter'] = 'json_with_trace'
+        
+        # Update root logger
+        if 'root' not in logging_config:
+            logging_config['root'] = {}
+        
+        if 'handlers' not in logging_config['root']:
+            logging_config['root']['handlers'] = []
+        
+        if 'console' not in logging_config['root']['handlers']:
+            logging_config['root']['handlers'].append('console')
+        
+        # Apply configuration
+        logging.config.dictConfig(logging_config)
+        logger.info("JSON logging with trace context configured")
+        
+    except Exception as e:
+        logger.error(f"Failed to setup logging format: {e}")
 
 
 def configure_opentelemetry():
-    """Main function to configure OpenTelemetry."""
+    """Main function to configure OpenTelemetry.
+    
+    This function should be called from Django settings.py.
+    It detects if auto-instrumentation is enabled and configures accordingly.
+    """
     # Only configure if not running with opentelemetry-instrument
     if not os.getenv("OTEL_PYTHON_INSTRUMENTATION_ENABLED"):
         logger.info("Configuring OpenTelemetry manually...")
@@ -349,3 +205,9 @@ def configure_opentelemetry():
         logger.info("OpenTelemetry configured via auto-instrumentation")
         # Still setup logging format even with auto-instrumentation
         setup_logging_format()
+
+
+# Configure OpenTelemetry when module is imported (only for manual setup)
+# This allows the module to work both with auto-instrumentation and manual setup
+if not os.getenv("OTEL_PYTHON_INSTRUMENTATION_ENABLED"):
+    configure_opentelemetry()

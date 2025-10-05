@@ -1,22 +1,22 @@
 """
 Logging configuration for Django with OpenTelemetry integration.
 This module provides structured JSON logging with trace context.
+
+Simplified - relies on OpenTelemetry SDK environment variables.
 """
 
 import os
 
 
 def get_logging_config():
-    """Get logging configuration with OpenTelemetry integration."""
+    """Get logging configuration with OpenTelemetry integration.
 
-    # Get Django settings if available
-    try:
-        from django.conf import settings
-
-        custom_config = getattr(settings, "DJANGO_CORALOGIX_OTEL", {})
-    except ImportError:
-        custom_config = {}
-
+    Note: OpenTelemetry SDK automatically handles:
+    - OTEL_LOGS_EXPORTER
+    - OTEL_EXPORTER_OTLP_ENDPOINT
+    - OTEL_EXPORTER_OTLP_HEADERS
+    - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+    """
     # Default logging configuration with JSON formatter and OpenTelemetry context
     logging_config = {
         "version": 1,
@@ -63,13 +63,8 @@ def get_logging_config():
         },
     }
 
-    # Add custom loggers from configuration
-    custom_loggers = custom_config.get("CUSTOM_LOGGERS", {})
-    if custom_loggers:
-        logging_config["loggers"].update(custom_loggers)
-
     # Use verbose formatter for local development
-    environment = os.getenv("APP_ENVIRONMENT", custom_config.get("ENVIRONMENT", "local"))
+    environment = os.getenv("APP_ENVIRONMENT", "local")
     if environment == "local":
         logging_config["handlers"]["console"]["formatter"] = "verbose"
 

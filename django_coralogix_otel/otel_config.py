@@ -8,7 +8,6 @@ Simplified version - relies on OpenTelemetry SDK environment variables.
 import json
 import logging
 import os
-import threading
 from datetime import datetime
 
 from opentelemetry import trace
@@ -62,25 +61,26 @@ class JSONFormatterWithTrace(logging.Formatter):
 
 def get_resource():
     """Create and return OpenTelemetry Resource.
-    
+
     OpenTelemetry SDK automatically reads standard environment variables:
     - OTEL_SERVICE_NAME (handled by SDK)
-    - OTEL_SERVICE_VERSION (handled by SDK) 
+    - OTEL_SERVICE_VERSION (handled by SDK)
     - OTEL_RESOURCE_ATTRIBUTES (handled by SDK)
     - OTEL_SERVICE_NAMESPACE (handled by SDK)
-    
+
     We only handle custom variables here.
     """
     # Get Django settings if available
     try:
         from django.conf import settings
+
         custom_config = getattr(settings, "DJANGO_CORALOGIX_OTEL", {})
     except ImportError:
         custom_config = {}
 
     # Only handle custom resource attributes
     resource_attrs = {}
-    
+
     # Add custom resource attributes from Django settings
     custom_attrs = custom_config.get("CUSTOM_RESOURCE_ATTRIBUTES", {})
     resource_attrs.update(custom_attrs)
@@ -92,7 +92,7 @@ def get_resource():
 
 def setup_tracing():
     """Setup OpenTelemetry tracing.
-    
+
     Note: OpenTelemetry SDK automatically handles:
     - OTEL_EXPORTER_OTLP_ENDPOINT
     - OTEL_EXPORTER_OTLP_HEADERS
@@ -113,9 +113,9 @@ def setup_tracing():
 
 def setup_metrics():
     """Setup OpenTelemetry metrics.
-    
+
     Note: OpenTelemetry SDK automatically handles:
-    - OTEL_EXPORTER_OTLP_ENDPOINT  
+    - OTEL_EXPORTER_OTLP_ENDPOINT
     - OTEL_EXPORTER_OTLP_HEADERS
     - OTEL_METRICS_EXPORTER
     - OTEL_METRIC_EXPORT_INTERVAL
@@ -132,10 +132,10 @@ def setup_metrics():
 
 def setup_instrumentation():
     """Setup automatic instrumentation for Django and other libraries.
-    
+
     Note: OpenTelemetry SDK automatically handles:
     - OTEL_PYTHON_DJANGO_INSTRUMENT
-    - OTEL_PYTHON_PSYCOPG2_INSTRUMENT  
+    - OTEL_PYTHON_PSYCOPG2_INSTRUMENT
     - OTEL_PYTHON_REQUESTS_INSTRUMENT
     - OTEL_PYTHON_KAFKA_PYTHON_INSTRUMENT
     - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
@@ -150,47 +150,47 @@ def setup_logging_format():
     # Configure Django logging with JSON formatter
     try:
         from django.conf import settings
-        
+
         # Get existing logging config or create default
-        logging_config = getattr(settings, 'LOGGING', {})
-        
+        logging_config = getattr(settings, "LOGGING", {})
+
         # Update formatters
-        if 'formatters' not in logging_config:
-            logging_config['formatters'] = {}
-        
-        logging_config['formatters']['json_with_trace'] = {
-            '()': 'django_coralogix_otel.otel_config.JSONFormatterWithTrace',
+        if "formatters" not in logging_config:
+            logging_config["formatters"] = {}
+
+        logging_config["formatters"]["json_with_trace"] = {
+            "()": "django_coralogix_otel.otel_config.JSONFormatterWithTrace",
         }
-        
+
         # Update handlers to use JSON formatter
-        if 'handlers' not in logging_config:
-            logging_config['handlers'] = {}
-        
+        if "handlers" not in logging_config:
+            logging_config["handlers"] = {}
+
         # Update console handler
-        if 'console' in logging_config['handlers']:
-            logging_config['handlers']['console']['formatter'] = 'json_with_trace'
-        
+        if "console" in logging_config["handlers"]:
+            logging_config["handlers"]["console"]["formatter"] = "json_with_trace"
+
         # Update root logger
-        if 'root' not in logging_config:
-            logging_config['root'] = {}
-        
-        if 'handlers' not in logging_config['root']:
-            logging_config['root']['handlers'] = []
-        
-        if 'console' not in logging_config['root']['handlers']:
-            logging_config['root']['handlers'].append('console')
-        
+        if "root" not in logging_config:
+            logging_config["root"] = {}
+
+        if "handlers" not in logging_config["root"]:
+            logging_config["root"]["handlers"] = []
+
+        if "console" not in logging_config["root"]["handlers"]:
+            logging_config["root"]["handlers"].append("console")
+
         # Apply configuration
         logging.config.dictConfig(logging_config)
         logger.info("JSON logging with trace context configured")
-        
+
     except Exception as e:
         logger.error(f"Failed to setup logging format: {e}")
 
 
 def configure_opentelemetry():
     """Main function to configure OpenTelemetry.
-    
+
     This function should be called from Django settings.py.
     It detects if auto-instrumentation is enabled and configures accordingly.
     """

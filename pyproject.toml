@@ -60,9 +60,6 @@ Repository = "https://github.com/seu-usuario/django-coralogix-otel"
 Documentation = "https://github.com/seu-usuario/django-coralogix-otel#readme"
 "Bug Tracker" = "https://github.com/seu-usuario/django-coralogix-otel/issues"
 
-[project.scripts]
-django-coralogix-otel-run = "scripts.django-coralogix-otel-run:main"
-
 [tool.setuptools]
 packages = ["django_coralogix_otel"]
 
@@ -71,19 +68,6 @@ django_coralogix_otel = ["*.py"]
 
 [tool.black]
 line-length = 120
-exclude =
-    .git,
-    .venv,
-    __pycache__,
-    docs/source/conf.py,
-    old,
-    build,
-    dist,
-    settings_*,
-    */migrations/*.py,
-    **/update_groups.py,
-    **/apps.py,
-    model_factories,
 
 [tool.isort]
 profile = "black"

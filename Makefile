@@ -3,7 +3,8 @@ ARGS = $(filter-out $@,$(MAKECMDGOALS))
 MAKEFLAGS += --silent
 BASE_PATH=${PWD}
 PYTHON_EXEC=python
-VENV_PATH=~/venv/django-coralogix-otel
+VENV_PATH=./venv
+VENV_PYTHON=${VENV_PATH}/bin/python
 
 .PHONY: help install install-dev test lint format clean build publish
 
@@ -24,29 +25,32 @@ setup-dev: ## Setup completo do ambiente de desenvolvimento
 	./setup_dev.sh
 
 test: ## Executa todos os testes
-	pytest
+	${VENV_PYTHON} -m pytest
 
 test-verbose: ## Executa testes em modo verbose
-	pytest -v
+	${VENV_PYTHON} -m pytest -v
 
 test-cov: ## Executa testes com cobertura
-	pytest --cov=django_coralogix_otel --cov-report=html --cov-report=term
+	${VENV_PYTHON} -m pytest --cov=django_coralogix_otel --cov-report=html --cov-report=term
 
 test-watch: ## Executa testes automaticamente ao alterar arquivos
 	ptw --clear --
 
-_lint: ## Verifica código com flake8
-	flake8 .
+lint: ## Verifica código com flake8
+	flake8 django_coralogix_otel *.py
+	flake8 tests *.py
 
-_format: ## Formata código com black e isort
-	black .
-	isort .
-
-format: _format _lint ## Formata e verifica código
+format: ## Formata código com black e isort
+	black django_coralogix_otel *.py
+	isort tests *.py
+	black django_coralogix_otel *.py
+	black tests *.py
 
 format-check: ## Verifica se código está formatado (sem alterar)
-	black . --check
-	isort . --check-only
+	black django_coralogix_otel *.py --check
+	black tests *.py --check
+	isort django_coralogix_otel *.py --check-only
+	isort tests *.py --check-only
 
 check-code: lint format-check ## Executa todas as verificações de código
 

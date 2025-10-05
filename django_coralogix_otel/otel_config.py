@@ -107,22 +107,12 @@ def get_resource():
         custom_config = {}
 
     resource_attrs = {
-        SERVICE_NAME: os.getenv(
-            "OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service")
-        ),
-        SERVICE_VERSION: os.getenv(
-            "OTEL_SERVICE_VERSION", custom_config.get("SERVICE_VERSION", "1.0.0")
-        ),
+        SERVICE_NAME: os.getenv("OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service")),
+        SERVICE_VERSION: os.getenv("OTEL_SERVICE_VERSION", custom_config.get("SERVICE_VERSION", "1.0.0")),
         "service.namespace": os.getenv("OTEL_SERVICE_NAMESPACE", "default"),
-        "deployment.environment": os.getenv(
-            "APP_ENVIRONMENT", custom_config.get("ENVIRONMENT", "local")
-        ),
-        "cx.application.name": os.getenv(
-            "OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service")
-        ),
-        "cx.subsystem.name": os.getenv(
-            "OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service")
-        )
+        "deployment.environment": os.getenv("APP_ENVIRONMENT", custom_config.get("ENVIRONMENT", "local")),
+        "cx.application.name": os.getenv("OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service")),
+        "cx.subsystem.name": os.getenv("OTEL_SERVICE_NAME", custom_config.get("SERVICE_NAME", "django-service"))
         + "-backend",
     }
 
@@ -212,13 +202,9 @@ def setup_metrics():
                 OTLPMetricExporter(**exporter_kwargs),
                 export_interval_millis=30000,  # 30 seconds
             )
-            meter_provider = MeterProvider(
-                resource=resource, metric_readers=[metric_reader]
-            )
+            meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
             metrics.set_meter_provider(meter_provider)
-            logger.info(
-                f"OTLP metric exporter configured with endpoint: {otlp_endpoint}"
-            )
+            logger.info(f"OTLP metric exporter configured with endpoint: {otlp_endpoint}")
         except Exception as e:
             logger.error(f"Failed to configure OTLP metric exporter: {e}")
             # Fallback to console exporter
@@ -226,9 +212,7 @@ def setup_metrics():
                 ConsoleMetricExporter(),
                 export_interval_millis=30000,
             )
-            meter_provider = MeterProvider(
-                resource=resource, metric_readers=[metric_reader]
-            )
+            meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
             metrics.set_meter_provider(meter_provider)
     else:
         # Development: Console exporter
@@ -236,9 +220,7 @@ def setup_metrics():
             ConsoleMetricExporter(),
             export_interval_millis=30000,
         )
-        meter_provider = MeterProvider(
-            resource=resource, metric_readers=[metric_reader]
-        )
+        meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
         metrics.set_meter_provider(meter_provider)
         logger.info("Console metric exporter configured")
 
@@ -308,9 +290,7 @@ def setup_instrumentation():
 
                     logger_provider = LoggerProvider(resource=get_resource())
                     log_exporter = OTLPLogExporter(**exporter_kwargs)
-                    logger_provider.add_log_record_processor(
-                        BatchLogRecordProcessor(log_exporter)
-                    )
+                    logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
                     set_logger_provider(logger_provider)
                     logger.info("OTLP log exporter configured")
                 except Exception as e:
@@ -320,9 +300,7 @@ def setup_instrumentation():
             LoggingInstrumentor().instrument(
                 set_logging_format=False,  # Don't auto-set format, we'll handle it
                 log_level=logging.INFO,
-                logger_provider=(
-                    logger_provider if "logger_provider" in locals() else None
-                ),
+                logger_provider=(logger_provider if "logger_provider" in locals() else None),
             )
 
             # Mark as instrumented to avoid duplicate setup

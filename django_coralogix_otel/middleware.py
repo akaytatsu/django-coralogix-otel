@@ -27,19 +27,13 @@ class TraceMiddleware:
             current_span.set_attribute("http.url", request.build_absolute_uri())
             current_span.set_attribute("http.scheme", request.scheme)
             current_span.set_attribute("http.host", request.get_host())
-            current_span.set_attribute(
-                "http.user_agent", request.META.get("HTTP_USER_AGENT", "")
-            )
+            current_span.set_attribute("http.user_agent", request.META.get("HTTP_USER_AGENT", ""))
             current_span.set_attribute("http.remote_addr", self.get_client_ip(request))
 
             # Add Django-specific attributes
             current_span.set_attribute("django.user.id", self.get_user_id(request))
-            current_span.set_attribute(
-                "django.user.username", self.get_username(request)
-            )
-            current_span.set_attribute(
-                "django.session.id", request.session.session_key or ""
-            )
+            current_span.set_attribute("django.user.username", self.get_username(request))
+            current_span.set_attribute("django.session.id", request.session.session_key or "")
 
         response = self.get_response(request)
 

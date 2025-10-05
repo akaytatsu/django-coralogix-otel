@@ -69,9 +69,7 @@ def get_logging_config():
         logging_config["loggers"].update(custom_loggers)
 
     # Use verbose formatter for local development
-    environment = os.getenv(
-        "APP_ENVIRONMENT", custom_config.get("ENVIRONMENT", "local")
-    )
+    environment = os.getenv("APP_ENVIRONMENT", custom_config.get("ENVIRONMENT", "local"))
     if environment == "local":
         logging_config["handlers"]["console"]["formatter"] = "verbose"
 

@@ -140,3 +140,9 @@ Thumbs.db
 
 .crush/
 .crush.json
+
+cov.xml
+coverage.xml
+.pytest_cache/
+.pytest_cache/
+.pytest_cache/*

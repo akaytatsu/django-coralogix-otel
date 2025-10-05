@@ -19,6 +19,21 @@ if not settings.configured:
             }
         },
         USE_TZ=True,
+        # Configuração de logging simples para testes
+        LOGGING_CONFIG="logging.config.dictConfig",
+        LOGGING={
+            "version": 1,
+            "disable_existing_loggers": False,
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                },
+            },
+            "root": {
+                "handlers": ["console"],
+                "level": "INFO",
+            },
+        },
     )
     django.setup()
 

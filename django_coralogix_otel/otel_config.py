@@ -154,93 +154,31 @@ def setup_instrumentation():
 
 
 def setup_logging_format():
-    """Setup JSON logging format with trace context."""
-    # Configure Django logging with JSON formatter
+    """Setup JSON logging format with trace context - using simplified approach."""
     try:
-        from django.conf import settings
-
-        # Get existing logging config or create default
-        logging_config = getattr(settings, "LOGGING", {})
-
-        # Ensure version is specified
-        if "version" not in logging_config:
-            logging_config["version"] = 1
-
-        # Update formatters - check if already exists
-        if "formatters" not in logging_config:
-            logging_config["formatters"] = {}
-
-        if "json_with_trace" not in logging_config["formatters"]:
-            # Try multiple import paths for compatibility
-            formatter_paths = [
-                "django_coralogix_otel.logging_config.JSONFormatterWithTrace",
-                "django_coralogix_otel.otel_config.JSONFormatterWithTrace",
-            ]
-
-            # Use the first available path
-            formatter_path = formatter_paths[0]  # Default to logging_config
-            logging_config["formatters"]["json_with_trace"] = {
-                "()": formatter_path,
-            }
-
-        # Update handlers to use JSON formatter
-        if "handlers" not in logging_config:
-            logging_config["handlers"] = {}
-
-        # Create console handler if it doesn't exist
-        if "console" not in logging_config["handlers"]:
-            logging_config["handlers"]["console"] = {
-                "class": "logging.StreamHandler",
-                "formatter": "json_with_trace",
-            }
-        else:
-            # Update existing console handler only if it doesn't have json_with_trace
-            if "formatter" not in logging_config["handlers"]["console"]:
-                logging_config["handlers"]["console"]["formatter"] = "json_with_trace"
-
-        # Update root logger
-        if "root" not in logging_config:
-            logging_config["root"] = {}
-
-        if "handlers" not in logging_config["root"]:
-            logging_config["root"]["handlers"] = []
-
-        if "console" not in logging_config["root"]["handlers"]:
-            logging_config["root"]["handlers"].append("console")
-
-        # Apply configuration
-        logging.config.dictConfig(logging_config)
-        logger.info("JSON logging with trace context configured")
-
-    except ImportError as e:
-        logger.error(f"Failed to import logging configuration: {e}")
-        # Fallback to basic logging configuration
-        try:
-            fallback_config = {
-                "version": 1,
-                "disable_existing_loggers": False,
-                "formatters": {
-                    "json_with_trace": {
-                        "()": "django_coralogix_otel.otel_config.JSONFormatterWithTrace",
-                    },
-                },
-                "handlers": {
-                    "console": {
-                        "class": "logging.StreamHandler",
-                        "formatter": "json_with_trace",
-                    },
-                },
-                "root": {
-                    "handlers": ["console"],
-                    "level": os.getenv("LOG_LEVEL", "INFO"),
-                },
-            }
-            logging.config.dictConfig(fallback_config)
-            logger.info("Fallback JSON logging configured")
-        except Exception as fallback_error:
-            logger.error(f"Failed to configure fallback logging: {fallback_error}")
+        # Use the simplified logging setup
+        from .simple_logging import setup_json_logging
+        setup_json_logging()
+        logger.info("Simplified JSON logging configured")
+        
     except Exception as e:
         logger.error(f"Failed to setup logging format: {e}")
+        # Final fallback - configure basic JSON logging directly
+        try:
+            formatter = JSONFormatterWithTrace()
+            handler = logging.StreamHandler()
+            handler.setFormatter(formatter)
+            root_logger = logging.getLogger()
+            
+            # Check if already configured to avoid duplicates
+            for h in root_logger.handlers:
+                if isinstance(h, logging.StreamHandler) and isinstance(h.formatter, JSONFormatterWithTrace):
+                    return
+                    
+            root_logger.addHandler(handler)
+            logger.info("Basic JSON logging configured as final fallback")
+        except Exception as final_error:
+            logger.error(f"Final fallback failed: {final_error}")
 
 
 def configure_opentelemetry():

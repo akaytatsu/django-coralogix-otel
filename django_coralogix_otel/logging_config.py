@@ -5,7 +5,56 @@ This module provides structured JSON logging with trace context.
 Simplified - relies on OpenTelemetry SDK environment variables.
 """
 
+import json
+import logging
 import os
+from datetime import datetime
+
+from opentelemetry import trace
+
+
+class JSONFormatterWithTrace(logging.Formatter):
+    """Custom JSON formatter that includes OpenTelemetry trace context."""
+
+    def format(self, record):
+        # Get current span from OpenTelemetry context
+        span = trace.get_current_span()
+        trace_id = None
+        span_id = None
+
+        if span and span.get_span_context():
+            span_context = span.get_span_context()
+            if span_context.is_valid:
+                trace_id = format(span_context.trace_id, "032x")
+                span_id = format(span_context.span_id, "016x")
+
+        # Create log entry
+        log_entry = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+        }
+
+        # Add trace context if available
+        if trace_id:
+            log_entry["trace_id"] = trace_id
+            log_entry["span_id"] = span_id
+
+        # Add exception info if present
+        if record.exc_info:
+            log_entry["exception"] = self.formatException(record.exc_info)
+
+        # Add extra fields
+        if hasattr(record, "user_id"):
+            log_entry["user_id"] = record.user_id
+        if hasattr(record, "request_id"):
+            log_entry["request_id"] = record.request_id
+
+        return json.dumps(log_entry)
 
 
 def get_logging_config():
@@ -23,7 +72,7 @@ def get_logging_config():
         "disable_existing_loggers": False,
         "formatters": {
             "json_with_trace": {
-                "()": "django_coralogix_otel.otel_config.JSONFormatterWithTrace",
+                "()": "django_coralogix_otel.logging_config.JSONFormatterWithTrace",
             },
             "verbose": {
                 "format": "{levelname} {asctime} {module} {message}",

@@ -17,6 +17,7 @@ from opentelemetry.sdk.resources import Resource
 logger = logging.getLogger(__name__)
 
 
+# Fallback JSONFormatterWithTrace for backward compatibility
 class JSONFormatterWithTrace(logging.Formatter):
     """Custom JSON formatter that includes OpenTelemetry trace context."""
 
@@ -170,8 +171,16 @@ def setup_logging_format():
             logging_config["formatters"] = {}
 
         if "json_with_trace" not in logging_config["formatters"]:
+            # Try multiple import paths for compatibility
+            formatter_paths = [
+                "django_coralogix_otel.logging_config.JSONFormatterWithTrace",
+                "django_coralogix_otel.otel_config.JSONFormatterWithTrace",
+            ]
+
+            # Use the first available path
+            formatter_path = formatter_paths[0]  # Default to logging_config
             logging_config["formatters"]["json_with_trace"] = {
-                "()": "django_coralogix_otel.otel_config.JSONFormatterWithTrace",
+                "()": formatter_path,
             }
 
         # Update handlers to use JSON formatter
@@ -203,6 +212,33 @@ def setup_logging_format():
         logging.config.dictConfig(logging_config)
         logger.info("JSON logging with trace context configured")
 
+    except ImportError as e:
+        logger.error(f"Failed to import logging configuration: {e}")
+        # Fallback to basic logging configuration
+        try:
+            fallback_config = {
+                "version": 1,
+                "disable_existing_loggers": False,
+                "formatters": {
+                    "json_with_trace": {
+                        "()": "django_coralogix_otel.otel_config.JSONFormatterWithTrace",
+                    },
+                },
+                "handlers": {
+                    "console": {
+                        "class": "logging.StreamHandler",
+                        "formatter": "json_with_trace",
+                    },
+                },
+                "root": {
+                    "handlers": ["console"],
+                    "level": os.getenv("LOG_LEVEL", "INFO"),
+                },
+            }
+            logging.config.dictConfig(fallback_config)
+            logger.info("Fallback JSON logging configured")
+        except Exception as fallback_error:
+            logger.error(f"Failed to configure fallback logging: {fallback_error}")
     except Exception as e:
         logger.error(f"Failed to setup logging format: {e}")
 

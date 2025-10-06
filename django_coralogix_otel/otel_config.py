@@ -177,8 +177,14 @@ def setup_logging_format():
         if "handlers" not in logging_config:
             logging_config["handlers"] = {}
 
-        # Update console handler
-        if "console" in logging_config["handlers"]:
+        # Create console handler if it doesn't exist
+        if "console" not in logging_config["handlers"]:
+            logging_config["handlers"]["console"] = {
+                "class": "logging.StreamHandler",
+                "formatter": "json_with_trace",
+            }
+        else:
+            # Update existing console handler
             logging_config["handlers"]["console"]["formatter"] = "json_with_trace"
 
         # Update root logger

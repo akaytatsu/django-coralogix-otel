@@ -165,13 +165,14 @@ def setup_logging_format():
         if "version" not in logging_config:
             logging_config["version"] = 1
 
-        # Update formatters
+        # Update formatters - check if already exists
         if "formatters" not in logging_config:
             logging_config["formatters"] = {}
 
-        logging_config["formatters"]["json_with_trace"] = {
-            "()": "django_coralogix_otel.otel_config.JSONFormatterWithTrace",
-        }
+        if "json_with_trace" not in logging_config["formatters"]:
+            logging_config["formatters"]["json_with_trace"] = {
+                "()": "django_coralogix_otel.otel_config.JSONFormatterWithTrace",
+            }
 
         # Update handlers to use JSON formatter
         if "handlers" not in logging_config:
@@ -184,8 +185,9 @@ def setup_logging_format():
                 "formatter": "json_with_trace",
             }
         else:
-            # Update existing console handler
-            logging_config["handlers"]["console"]["formatter"] = "json_with_trace"
+            # Update existing console handler only if it doesn't have json_with_trace
+            if "formatter" not in logging_config["handlers"]["console"]:
+                logging_config["handlers"]["console"]["formatter"] = "json_with_trace"
 
         # Update root logger
         if "root" not in logging_config:

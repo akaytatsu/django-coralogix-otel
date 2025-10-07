@@ -1,9 +1,13 @@
-opentelemetry-distro[otlp]>=0.47b0
-opentelemetry-instrumentation>=0.47b0
-opentelemetry-instrumentation-django>=0.47b0
-opentelemetry-instrumentation-psycopg2>=0.47b0
-opentelemetry-instrumentation-requests>=0.47b0
-opentelemetry-instrumentation-logging>=0.47b0
-opentelemetry-instrumentation-wsgi>=0.47b0
-opentelemetry-instrumentation-asgi>=0.47b0
-opentelemetry-instrumentation-kafka-python>=0.47b0
+opentelemetry-distro[otlp]==0.47b0
+opentelemetry-instrumentation==0.47b0
+# Removendo versão específica - deixar o distro resolver
+# opentelemetry-exporter-otlp será instalado pelo distro[otlp]
+opentelemetry-instrumentation-django==0.47b0
+opentelemetry-instrumentation-psycopg2==0.47b0
+opentelemetry-instrumentation-requests==0.47b0
+opentelemetry-instrumentation-logging==0.47b0
+# Para instrumentação Kafka (se usando kafka-python)
+opentelemetry-instrumentation-kafka-python==0.47b0
+# Para métricas HTTP automaticas
+opentelemetry-instrumentation-wsgi==0.47b0
+opentelemetry-instrumentation-asgi==0.47b0

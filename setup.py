@@ -43,6 +43,9 @@ setup(
             "isort",
         ],
     },
+    scripts=[
+        "scripts/django-coralogix-otel-run",
+    ],
     include_package_data=True,
     zip_safe=False,
 )

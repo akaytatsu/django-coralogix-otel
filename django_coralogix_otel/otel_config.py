@@ -187,24 +187,44 @@ def configure_opentelemetry():
     This function should be called from Django settings.py.
     It detects if auto-instrumentation is enabled and configures accordingly.
     """
-    # Only configure if not running with opentelemetry-instrument
-    if not os.getenv("OTEL_PYTHON_INSTRUMENTATION_ENABLED"):
-        logger.info("Configuring OpenTelemetry manually...")
-        setup_tracing()
-        setup_metrics()
-        setup_instrumentation()
-        setup_logging_format()
-    else:
-        logger.info("OpenTelemetry configured via auto-instrumentation")
-        # Still setup logging format even with auto-instrumentation
-        setup_logging_format()
+    try:
+        # Only configure if not running with opentelemetry-instrument
+        if not os.getenv("OTEL_PYTHON_INSTRUMENTATION_ENABLED"):
+            logger.info("Configuring OpenTelemetry manually...")
+            setup_tracing()
+            setup_metrics()
+            setup_instrumentation()
+            setup_logging_format()
+        else:
+            logger.info("OpenTelemetry configured via auto-instrumentation")
+            # Still setup logging format even with auto-instrumentation
+            setup_logging_format()
+    except Exception as e:
+        logger.error(f"Failed to configure OpenTelemetry: {e}")
+        # Don't raise exceptions to avoid breaking Django startup
+        # Just setup basic logging as fallback
+        try:
+            setup_logging_format()
+        except Exception as logging_error:
+            logger.error(f"Failed to setup logging as fallback: {logging_error}")
+
+
+def configure_opentelemetry_safe():
+    """
+    Safe version of configure_opentelemetry that never raises exceptions.
+    This is useful for Django settings.py where errors can break the entire app.
+    """
+    try:
+        configure_opentelemetry()
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"OpenTelemetry configuration failed silently: {e}")
+        # Continue without OpenTelemetry - better than breaking the app
 
 
 # Configure OpenTelemetry when module is imported (only for manual setup)
 # This allows the module to work both with auto-instrumentation and manual setup
-if not os.getenv("OTEL_PYTHON_INSTRUMENTATION_ENABLED"):
-    configure_opentelemetry()
-else:
-    # When running with opentelemetry-instrument, only setup logging
-    # to avoid interfering with Django's initialization
-    setup_logging_format()
+# Use the safe version to avoid breaking Django startup
+configure_opentelemetry_safe()

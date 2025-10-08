@@ -51,6 +51,9 @@ export OTEL_BSP_EXPORT_TIMEOUT=${OTEL_BSP_EXPORT_TIMEOUT:-30000}
 # Configurações de métricas
 export OTEL_METRIC_EXPORT_INTERVAL=${OTEL_METRIC_EXPORT_INTERVAL:-30000}
 
+# Configurar ambiente Python para evitar conflitos
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+
 # Se for desenvolvimento local, usar console exporter
 if [ "$APP_ENVIRONMENT" = "local" ] && [ -z "$OTEL_EXPORTER_OTLP_ENDPOINT" ]; then
     echo "Local development detected, using console exporters"
@@ -59,6 +62,37 @@ if [ "$APP_ENVIRONMENT" = "local" ] && [ -z "$OTEL_EXPORTER_OTLP_ENDPOINT" ]; th
     export OTEL_LOGS_EXPORTER=console
 fi
 
+# Função para executar comandos com tratamento de erro
+execute_with_otel() {
+    echo "Executing: opentelemetry-instrument $@"
+
+    # Try to execute the command
+    if opentelemetry-instrument "$@"; then
+        echo "Command completed successfully"
+        exit 0
+    else
+        exit_code=$?
+        echo "Command failed with exit code: $exit_code"
+
+        # If the command failed and it's a Django management command,
+        # provide helpful information
+        if [[ "$*" == *"manage.py"* ]]; then
+            echo ""
+            echo "=== Troubleshooting ==="
+            echo "If you're experiencing database connection issues:"
+            echo "1. Check if environment variables are properly set"
+            echo "2. Try running without opentelemetry-instrument first:"
+            echo "   python $*"
+            echo "3. Check if django-coralogix-otel is in INSTALLED_APPS"
+            echo ""
+            echo "For development, you can disable OTEL:"
+            echo "   unset OTEL_PYTHON_INSTRUMENTATION_ENABLED"
+            echo "   python $*"
+        fi
+
+        exit $exit_code
+    fi
+}
+
 # Executar o comando com OpenTelemetry
-echo "Executing: opentelemetry-instrument $@"
-exec opentelemetry-instrument "$@"
+execute_with_otel "$@"

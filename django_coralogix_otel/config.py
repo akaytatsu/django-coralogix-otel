@@ -1,186 +1,227 @@
 """
-Configuração OpenTelemetry para Django com Coralogix
-Implementação completa com suporte a variáveis de ambiente do Kubernetes
+Configuração do OpenTelemetry para Django com Coralogix.
+
+Este módulo configura automaticamente tracing, métricas e logging
+instrumentation para aplicações Django.
 """
 
-import os
 import logging
-from typing import Dict, Any, Optional
-from opentelemetry import trace, metrics
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import (
-    BatchSpanProcessor,
-    ConsoleSpanExporter,
-    SimpleSpanProcessor
-)
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+import os
+
+from opentelemetry import metrics, trace
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.django import DjangoInstrumentor
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
+from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry.instrumentation.kafka import KafkaInstrumentor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import (
+    ConsoleMetricExporter,
     PeriodicExportingMetricReader,
-    ConsoleMetricExporter
 )
-from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-from opentelemetry._logs import set_logger_provider
-from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-from opentelemetry.sdk._logs.export import (
-    BatchLogRecordProcessor,
-    ConsoleLogExporter
-)
-from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
-
-from .utils import get_coralogix_headers, get_resource_attributes
+from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 logger = logging.getLogger(__name__)
 
 
-def configure_opentelemetry(enable_console_exporter: bool = False) -> bool:
+def get_resource():
     """
-    Configura o OpenTelemetry para tracing, metrics e logging
-    com suporte completo às variáveis de ambiente do Kubernetes
-
-    Args:
-        enable_console_exporter: Se True, habilita exportador console para desenvolvimento
-
+    Cria e retorna um Resource OpenTelemetry com informações do serviço.
+    
     Returns:
-        bool: True se a configuração foi bem-sucedida
+        Resource: Configuração de recursos do OpenTelemetry
     """
-    try:
-        # Verificar se OpenTelemetry deve ser habilitado
-        if not _should_enable_opentelemetry():
-            logger.info("OpenTelemetry desabilitado por configuração")
-            return False
-
-        # Configurar resource com atributos Coralogix e Kubernetes
-        resource = Resource.create(get_resource_attributes())
-
-        # Configurar tracing
-        _configure_tracing(resource, enable_console_exporter)
-
-        # Configurar metrics
-        _configure_metrics(resource, enable_console_exporter)
-
-        # Configurar logging
-        _configure_logging(resource, enable_console_exporter)
-
-        logger.info("OpenTelemetry configurado com sucesso para Coralogix")
-        return True
-
-    except Exception as e:
-        logger.error(f"Erro ao configurar OpenTelemetry: {e}")
-        # Não levantar exceção para permitir fallback
-        return False
-
-
-def _should_enable_opentelemetry() -> bool:
-    """Verifica se OpenTelemetry deve ser habilitado baseado em variáveis de ambiente"""
-    # Verificar se variáveis obrigatórias estão presentes
-    if not os.getenv("CORALOGIX_PRIVATE_KEY") or not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
-        logger.warning("Variáveis obrigatórias para OpenTelemetry não encontradas")
-        return False
-
-    # Verificar se instrumentação está habilitada via variáveis de ambiente
-    django_enabled = os.getenv("OTEL_PYTHON_DJANGO_INSTRUMENT", "true").lower() == "true"
-    if not django_enabled:
-        logger.info("Instrumentação Django desabilitada por configuração")
-        return False
-
-    # Verificar se o Django está configurado (apenas se Django estiver disponível)
-    try:
-        import django
-        from django.conf import settings
-
-        # Verificar configurações críticas do Django
-        if not hasattr(settings, 'DATABASES') or not settings.DATABASES:
-            logger.warning("Django DATABASES não configurado. Adiando inicialização OpenTelemetry.")
-            return False
-
-        if not hasattr(settings, 'ALLOWED_HOSTS'):
-            logger.warning("Django ALLOWED_HOSTS não configurado. Adiando inicialização OpenTelemetry.")
-            return False
-
-        logger.debug("Django está configurado e pronto para OpenTelemetry")
-
-    except ImportError:
-        logger.debug("Django não disponível, continuando com OpenTelemetry")
-    except Exception as e:
-        logger.warning(f"Erro ao verificar configuração Django: {e}. Continuando com OpenTelemetry.")
-
-    return True
+    service_name = os.getenv("OTEL_SERVICE_NAME", "django-service")
+    
+    # Extrai atributos de resource do OTEL_RESOURCE_ATTRIBUTES
+    resource_attributes = {}
+    if os.getenv("OTEL_RESOURCE_ATTRIBUTES"):
+        # Formato: key1=value1,key2=value2
+        for pair in os.getenv("OTEL_RESOURCE_ATTRIBUTES").split(","):
+            if "=" in pair:
+                key, value = pair.split("=", 1)
+                resource_attributes[key.strip()] = value.strip()
+    
+    # Configurações padrão para Coralogix
+    default_attributes = {
+        SERVICE_NAME: service_name,
+        SERVICE_VERSION: os.getenv("OTEL_SERVICE_VERSION", "1.0.0"),
+        "service.namespace": os.getenv("OTEL_SERVICE_NAMESPACE", "default"),
+        "deployment.environment": os.getenv("APP_ENVIRONMENT", "production"),
+        "cx.application.name": resource_attributes.get("cx.application.name", service_name),
+        "cx.subsystem.name": resource_attributes.get("cx.subsystem.name", f"{service_name}-backend"),
+    }
+    
+    # Adiciona atributos customizados do resource
+    default_attributes.update(resource_attributes)
+    
+    return Resource.create(default_attributes)
 
 
-def _configure_tracing(resource: Resource, enable_console: bool = False):
-    """Configura o tracing OpenTelemetry"""
+def setup_tracing():
+    """
+    Configura tracing do OpenTelemetry.
+    """
+    resource = get_resource()
+
+    # Verifica se TracerProvider já está configurado
+    current_provider = trace.get_tracer_provider()
+    if hasattr(current_provider, "resource") and current_provider.resource:
+        logger.info("TracerProvider já configurado por auto-instrumentação")
+        return
+
+    # Configura TracerProvider
     tracer_provider = TracerProvider(resource=resource)
     trace.set_tracer_provider(tracer_provider)
 
-    # Configurar exportador OTLP para produção
+    # Configura exporters
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+
     if otlp_endpoint:
-        otlp_trace_exporter = OTLPSpanExporter(
-            endpoint=otlp_endpoint,
-            headers=get_coralogix_headers()
-        )
-        tracer_provider.add_span_processor(BatchSpanProcessor(otlp_trace_exporter))
+        # Produção: OTLP exporter para Coralogix
+        try:
+            # Adiciona /v1/traces ao endpoint se não tiver
+            if not otlp_endpoint.endswith("/v1/traces"):
+                if otlp_endpoint.endswith("/"):
+                    otlp_endpoint = otlp_endpoint[:-1]
+                otlp_endpoint = f"{otlp_endpoint}/v1/traces"
+            
+            otlp_exporter = OTLPSpanExporter(
+                endpoint=otlp_endpoint, 
+                insecure=True  # Para comunicação interna do Kubernetes
+            )
+            span_processor = BatchSpanProcessor(otlp_exporter)
+            tracer_provider.add_span_processor(span_processor)
+            logger.info(f"OTLP span exporter configurado com endpoint: {otlp_endpoint}")
+        except Exception as e:
+            logger.error(f"Falha ao configurar OTLP span exporter: {e}")
+            # Fallback para console exporter
+            _setup_console_tracing(tracer_provider)
+    else:
+        # Desenvolvimento: Console exporter
+        _setup_console_tracing(tracer_provider)
 
-    # Configurar exportador console para desenvolvimento
-    if enable_console or os.getenv("OTEL_LOG_LEVEL") == "DEBUG":
-        console_exporter = ConsoleSpanExporter()
-        tracer_provider.add_span_processor(SimpleSpanProcessor(console_exporter))
+
+def _setup_console_tracing(tracer_provider):
+    """Configura console exporter como fallback."""
+    console_exporter = ConsoleSpanExporter()
+    span_processor = BatchSpanProcessor(console_exporter)
+    tracer_provider.add_span_processor(span_processor)
+    logger.info("Console span exporter configurado")
 
 
-def _configure_metrics(resource: Resource, enable_console: bool = False):
-    """Configura as métricas OpenTelemetry"""
-    exporters = []
+def setup_metrics():
+    """
+    Configura métricas do OpenTelemetry.
+    """
+    resource = get_resource()
 
-    # Configurar exportador OTLP para produção
+    # Verifica se MeterProvider já está configurado
+    current_provider = metrics.get_meter_provider()
+    if hasattr(current_provider, "resource") and current_provider.resource:
+        logger.info("MeterProvider já configurado")
+        return
+
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+
     if otlp_endpoint:
-        otlp_metric_exporter = OTLPMetricExporter(
-            endpoint=otlp_endpoint,
-            headers=get_coralogix_headers()
-        )
-        exporters.append(PeriodicExportingMetricReader(otlp_metric_exporter))
-
-    # Configurar exportador console para desenvolvimento
-    if enable_console or os.getenv("OTEL_LOG_LEVEL") == "DEBUG":
-        console_exporter = ConsoleMetricExporter()
-        exporters.append(PeriodicExportingMetricReader(console_exporter))
-
-    if exporters:
-        meter_provider = MeterProvider(resource=resource, metric_readers=exporters)
-        metrics.set_meter_provider(meter_provider)
-
-
-def _configure_logging(resource: Resource, enable_console: bool = False):
-    """Configura o logging OpenTelemetry"""
-    logger_provider = LoggerProvider(resource=resource)
-    set_logger_provider(logger_provider)
-
-    # Configurar exportador OTLP para produção
-    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-    if otlp_endpoint:
-        otlp_log_exporter = OTLPLogExporter(
-            endpoint=otlp_endpoint,
-            headers=get_coralogix_headers()
-        )
-        logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
-
-    # Configurar exportador console para desenvolvimento
-    if enable_console or os.getenv("OTEL_LOG_LEVEL") == "DEBUG":
-        console_exporter = ConsoleLogExporter()
-        logger_provider.add_log_record_processor(BatchLogRecordProcessor(console_exporter))
-
-    # Configurar handler de logging para Django
-    handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
-    logging.getLogger().addHandler(handler)
+        # Produção: OTLP exporter para Coralogix
+        try:
+            # Adiciona /v1/metrics ao endpoint se não tiver
+            if not otlp_endpoint.endswith("/v1/metrics"):
+                if otlp_endpoint.endswith("/"):
+                    otlp_endpoint = otlp_endpoint[:-1]
+                otlp_endpoint = f"{otlp_endpoint}/v1/metrics"
+            
+            metric_reader = PeriodicExportingMetricReader(
+                OTLPMetricExporter(endpoint=otlp_endpoint, insecure=True),
+                export_interval_millis=30000,  # 30 segundos
+            )
+            meter_provider = MeterProvider(
+                resource=resource, metric_readers=[metric_reader]
+            )
+            metrics.set_meter_provider(meter_provider)
+            logger.info(
+                f"OTLP metric exporter configurado com endpoint: {otlp_endpoint}"
+            )
+        except Exception as e:
+            logger.error(f"Falha ao configurar OTLP metric exporter: {e}")
+            # Fallback para console exporter
+            _setup_console_metrics(resource)
+    else:
+        # Desenvolvimento: Console exporter
+        _setup_console_metrics(resource)
 
 
-def get_tracer(name: Optional[str] = None):
-    """Retorna o tracer configurado"""
-    return trace.get_tracer(name or __name__)
+def _setup_console_metrics(resource):
+    """Configura console metrics exporter como fallback."""
+    metric_reader = PeriodicExportingMetricReader(
+        ConsoleMetricExporter(),
+        export_interval_millis=30000,
+    )
+    meter_provider = MeterProvider(
+        resource=resource, metric_readers=[metric_reader]
+    )
+    metrics.set_meter_provider(meter_provider)
+    logger.info("Console metric exporter configurado")
 
 
-def get_meter(name: Optional[str] = None):
-    """Retorna o meter configurado"""
-    return metrics.get_meter(name or __name__)
+def setup_instrumentation():
+    """
+    Configura instrumentação automática para Django e outras bibliotecas.
+    """
+    try:
+        # Django instrumentation
+        if not DjangoInstrumentor().is_instrumented_by_opentelemetry:
+            DjangoInstrumentor().instrument()
+            logger.info("Instrumentação Django habilitada")
+
+        # PostgreSQL instrumentation
+        if not Psycopg2Instrumentor().is_instrumented_by_opentelemetry:
+            Psycopg2Instrumentor().instrument()
+            logger.info("Instrumentação Psycopg2 habilitada")
+
+        # Requests instrumentation
+        if not RequestsInstrumentor().is_instrumented_by_opentelemetry:
+            RequestsInstrumentor().instrument()
+            logger.info("Instrumentação Requests habilitada")
+
+        # Kafka instrumentation (se disponível)
+        try:
+            if not KafkaInstrumentor().is_instrumented_by_opentelemetry:
+                KafkaInstrumentor().instrument()
+                logger.info("Instrumentação Kafka habilitada")
+        except Exception:
+            logger.debug("Instrumentação Kafka não disponível ou já configurada")
+
+        # Logging instrumentation
+        LoggingInstrumentor().instrument(set_logging_format=True)
+        logger.info("Instrumentação Logging habilitada")
+
+    except Exception as e:
+        logger.error(f"Falha ao configurar instrumentação: {e}")
+
+
+def configure_opentelemetry():
+    """
+    Função principal para configurar OpenTelemetry.
+    
+    Esta função verifica se a configuração via variáveis de ambiente
+    está ativa e configura manualmente se necessário.
+    """
+    logger.info("Configurando Django Coralogix OpenTelemetry...")
+    
+    # Configura apenas se não estiver rodando com opentelemetry-instrument
+    if not os.getenv("OTEL_PYTHON_INSTRUMENTATION_ENABLED"):
+        logger.info("Configurando OpenTelemetry manualmente...")
+        setup_tracing()
+        setup_metrics()
+        setup_instrumentation()
+    else:
+        logger.info("OpenTelemetry configurado via auto-instrumentação")
+    
+    logger.info("Django Coralogix OpenTelemetry configurado com sucesso!")

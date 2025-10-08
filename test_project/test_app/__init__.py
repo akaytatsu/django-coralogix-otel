@@ -1,1 +1,0 @@
-# Aplicação de teste para django-coralogix-otel

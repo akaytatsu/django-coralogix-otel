@@ -1,13 +1,25 @@
-opentelemetry-distro[otlp]==0.58b0
-opentelemetry-instrumentation==0.58b0
-# Removendo versão específica - deixar o distro resolver
-# opentelemetry-exporter-otlp será instalado pelo distro[otlp]
-opentelemetry-instrumentation-django==0.58b0
-opentelemetry-instrumentation-psycopg2==0.58b0
-opentelemetry-instrumentation-requests==0.58b0
-opentelemetry-instrumentation-logging==0.58b0
-# Para instrumentação Kafka (se usando kafka-python)
-opentelemetry-instrumentation-kafka-python==0.58b0
-# Para métricas HTTP automaticas
-opentelemetry-instrumentation-wsgi==0.58b0
-opentelemetry-instrumentation-asgi==0.58b0
+# Dependências principais para django-coralogix-otel
+# Este arquivo é usado para instalação direta das dependências
+
+# OpenTelemetry Core
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-distro[otlp]>=0.41.0
+
+# OpenTelemetry Instrumentation
+opentelemetry-instrumentation>=0.41.0
+opentelemetry-instrumentation-django>=0.41.0
+opentelemetry-instrumentation-psycopg2>=0.41.0
+opentelemetry-instrumentation-requests>=0.41.0
+opentelemetry-instrumentation-logging>=0.41.0
+opentelemetry-instrumentation-wsgi>=0.41.0
+opentelemetry-instrumentation-asgi>=0.41.0
+
+# OpenTelemetry Exporters
+opentelemetry-exporter-otlp-proto-http>=1.20.0
+
+# Django
+Django>=3.2
+
+# Dependências opcionais (comentadas - descomente se necessário)
+# opentelemetry-instrumentation-kafka-python>=0.41.0

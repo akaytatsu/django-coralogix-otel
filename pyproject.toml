@@ -14,11 +14,11 @@ readme = "README.md"
 requires-python = ">=3.7"
 license = {text = "MIT"}
 authors = [
-    {name = "Vertc Developers", email = "dev@vertc.com.br"}
+    {name = "Thiago Freitas", email = "thiagosistemas3@gmail.com"}
 ]
 keywords = [
     "django",
-    "opentelemetry", 
+    "opentelemetry",
     "coralogix",
     "observability",
     "monitoring",
@@ -50,7 +50,7 @@ dependencies = [
     "opentelemetry-api>=1.20.0",
     "opentelemetry-sdk>=1.20.0",
     "opentelemetry-distro[otlp]>=0.41.0",
-    
+
     # OpenTelemetry Instrumentation
     "opentelemetry-instrumentation>=0.41.0",
     "opentelemetry-instrumentation-django>=0.41.0",
@@ -59,10 +59,10 @@ dependencies = [
     "opentelemetry-instrumentation-logging>=0.41.0",
     "opentelemetry-instrumentation-wsgi>=0.41.0",
     "opentelemetry-instrumentation-asgi>=0.41.0",
-    
+
     # OpenTelemetry Exporters
     "opentelemetry-exporter-otlp-proto-http>=1.20.0",
-    
+
     # Django
     "Django>=3.2",
 ]

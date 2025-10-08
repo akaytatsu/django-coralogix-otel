@@ -166,14 +166,14 @@ from django_coralogix_otel import get_tracer
 
 def minha_view(request):
     tracer = get_tracer("minhaapp.views")
-    
+
     with tracer.start_as_current_span("processar_dados") as span:
         span.set_attribute("user.id", request.user.id)
         span.set_attribute("operation.type", "data_processing")
-        
+
         # Sua lógica de negócio aqui
         data = process_data(request.data)
-        
+
         span.set_attribute("result.size", len(data))
         return JsonResponse(data)
 ```
@@ -781,16 +781,16 @@ from django_coralogix_otel import get_tracer
 
 def monitor_performance():
     tracer = get_tracer("performance.monitor")
-    
+
     with tracer.start_as_current_span("performance_test") as span:
         start_time = time.time()
-        
+
         # Operação a ser monitorada
         time.sleep(0.1)
-        
+
         duration = time.time() - start_time
         span.set_attribute("performance.duration", duration)
-        
+
         if duration > 0.5:
             span.set_attribute("performance.slow", True)
 ```
@@ -815,7 +815,7 @@ def monitor_performance():
 
 ## 📞 Contato
 
-- **Email**: dev@vertc.com.br
+- **Email**: thiagosistemas3@gmail.com
 - **GitHub**: [vertc-developers/django-coralogix-otel](https://github.com/vertc-developers/django-coralogix-otel)
 - **Issues**: [Reportar Problema](https://github.com/vertc-developers/django-coralogix-otel/issues)
 

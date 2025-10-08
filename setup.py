@@ -3,8 +3,9 @@
 Setup script para django-coralogix-otel
 """
 
-from setuptools import setup, find_packages
 import os
+
+from setuptools import find_packages, setup
 
 # Ler o conteúdo do README para a descrição longa
 with open("README.md", "r", encoding="utf-8") as fh:
@@ -22,8 +23,8 @@ with open("django_coralogix_otel/__init__.py", "r", encoding="utf-8") as f:
 setup(
     name="django-coralogix-otel",
     version=version,
-    author="Vertc Developers",
-    author_email="dev@vertc.com.br",
+    author="Thiago Freitas",
+    author_email="thiagosistemas3@gmail.com",
     description="Auto-instrumentação OpenTelemetry com Coralogix para aplicações Django",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -54,7 +55,6 @@ setup(
         "opentelemetry-api>=1.20.0",
         "opentelemetry-sdk>=1.20.0",
         "opentelemetry-distro[otlp]>=0.41.0",
-        
         # OpenTelemetry Instrumentation
         "opentelemetry-instrumentation>=0.41.0",
         "opentelemetry-instrumentation-django>=0.41.0",
@@ -63,13 +63,10 @@ setup(
         "opentelemetry-instrumentation-logging>=0.41.0",
         "opentelemetry-instrumentation-wsgi>=0.41.0",
         "opentelemetry-instrumentation-asgi>=0.41.0",
-        
         # OpenTelemetry Exporters
         "opentelemetry-exporter-otlp-proto-http>=1.20.0",
-        
         # Django
         "Django>=3.2",
-        
         # Dependências opcionais (instaladas apenas se necessárias)
         "opentelemetry-instrumentation-kafka-python>=0.41.0; extra == 'kafka'",
     ],
@@ -97,7 +94,7 @@ setup(
     zip_safe=False,
     keywords=[
         "django",
-        "opentelemetry", 
+        "opentelemetry",
         "coralogix",
         "observability",
         "monitoring",

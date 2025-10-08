@@ -481,9 +481,73 @@ else:
 - **Exceções**: Contagem e tipos de erros
 - **Performance de queries**: Timing de operações de banco
 
+## 🐳 Script de Entrypoint
+
+O pacote inclui um script bash `entrypoint.sh` para facilitar a execução de aplicações Django com auto-instrumentação OpenTelemetry.
+
+### Uso Básico
+
+```bash
+# Executar com Gunicorn (produção)
+./entrypoint.sh gunicorn
+
+# Executar com Django Development Server
+./entrypoint.sh runserver
+
+# Executar setup (migrations, collectstatic)
+./entrypoint.sh setup
+
+# Executar comandos Django
+./entrypoint.sh manage.py migrate
+./entrypoint.sh manage.py shell
+```
+
+### Características do Entrypoint
+
+- **Estratégia Híbrida**: Combina auto-instrumentação com configuração manual
+- **Setup Automático**: Executa migrations e collectstatic automaticamente
+- **Suporte a Múltiplos Servidores**: Gunicorn, Django runserver, Uvicorn
+- **Ambientes Flexíveis**: Desenvolvimento local e produção
+- **Compatibilidade**: Docker, Kubernetes, desenvolvimento local
+
+### Documentação Completa
+
+Para documentação detalhada sobre o script de entrypoint, consulte [ENTRYPOINT.md](ENTRYPOINT.md).
+
 ## 🐳 Integração com Docker
 
-### Dockerfile Exemplo
+### Dockerfile Exemplo com Entrypoint
+
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Instalar dependências
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código da aplicação
+COPY . .
+
+# Copiar script de entrypoint
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Variáveis de ambiente para produção
+ENV DJANGO_CORALOGIX_AUTO_INIT=true
+ENV OTEL_LOG_LEVEL=INFO
+ENV DJANGO_DEBUG=False
+
+# Expor porta
+EXPOSE 8000
+
+# Usar entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["gunicorn"]
+```
+
+### Dockerfile Tradicional (sem entrypoint)
 
 ```dockerfile
 FROM python:3.9-slim

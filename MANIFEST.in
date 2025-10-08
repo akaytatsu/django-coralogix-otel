@@ -2,6 +2,10 @@
 include README.md
 include LICENSE
 include CHANGELOG.md
+include ENTRYPOINT.md
+
+# Incluir script de entrypoint
+include entrypoint.sh
 
 # Incluir arquivos de configuração
 include pyproject.toml

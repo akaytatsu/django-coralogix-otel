@@ -1,0 +1,121 @@
+[build-system]
+requires = [
+    "setuptools>=45.0",
+    "wheel",
+    "setuptools-scm>=6.2"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-coralogix-otel"
+dynamic = ["version"]
+description = "Auto-instrumentação OpenTelemetry com Coralogix para aplicações Django"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "MIT"}
+authors = [
+    {name = "Vertc Developers", email = "dev@vertc.com.br"}
+]
+keywords = [
+    "django",
+    "opentelemetry", 
+    "coralogix",
+    "observability",
+    "monitoring",
+    "tracing",
+    "metrics",
+    "logging"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Framework :: Django",
+    "Framework :: Django :: 3.2",
+    "Framework :: Django :: 4.0",
+    "Framework :: Django :: 4.1",
+    "Framework :: Django :: 4.2",
+    "Topic :: System :: Monitoring",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    # OpenTelemetry Core
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-distro[otlp]>=0.41.0",
+    
+    # OpenTelemetry Instrumentation
+    "opentelemetry-instrumentation>=0.41.0",
+    "opentelemetry-instrumentation-django>=0.41.0",
+    "opentelemetry-instrumentation-psycopg2>=0.41.0",
+    "opentelemetry-instrumentation-requests>=0.41.0",
+    "opentelemetry-instrumentation-logging>=0.41.0",
+    "opentelemetry-instrumentation-wsgi>=0.41.0",
+    "opentelemetry-instrumentation-asgi>=0.41.0",
+    
+    # OpenTelemetry Exporters
+    "opentelemetry-exporter-otlp-proto-http>=1.20.0",
+    
+    # Django
+    "Django>=3.2",
+]
+
+[project.optional-dependencies]
+kafka = ["opentelemetry-instrumentation-kafka-python>=0.41.0"]
+dev = [
+    "pytest>=6.0",
+    "pytest-django>=4.5.0",
+    "black>=22.0",
+    "flake8>=4.0",
+    "mypy>=0.910",
+    "isort>=5.0",
+]
+docs = [
+    "sphinx>=4.0",
+    "sphinx-rtd-theme>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/vertc-developers/django-coralogix-otel"
+BugTracker = "https://github.com/vertc-developers/django-coralogix-otel/issues"
+Source = "https://github.com/vertc-developers/django-coralogix-otel"
+
+[project.scripts]
+django-coralogix-init = "django_coralogix_otel.entrypoint:initialize_opentelemetry"
+
+[tool.setuptools.dynamic]
+version = {attr = "django_coralogix_otel.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["django_coralogix_otel*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py37', 'py38', 'py39', 'py310', 'py311']
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.mypy]
+python_version = "3.7"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+python_files = ["tests.py", "test_*.py"]
+addopts = "--strict-markers --strict-config"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]

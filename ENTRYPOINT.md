@@ -202,6 +202,53 @@ OTEL_PYTHON_WSGI_INSTRUMENT=true
 OTEL_PYTHON_ASGI_INSTRUMENT=true
 ```
 
+## 📦 Uso Automático do gunicorn.config.py da Biblioteca
+
+O script `entrypoint.sh` agora possui suporte automático para o arquivo de configuração do Gunicorn fornecido pela biblioteca `django-coralogix-otel`, simplificando ainda mais a configuração para produção.
+
+### Funcionalidade
+
+- **Detecção Automática**: O entrypoint.sh procura automaticamente pelo arquivo `gunicorn.config.py` na biblioteca instalada
+- **Configuração Otimizada**: Utiliza uma configuração pré-otimizada para OpenTelemetry e performance
+- **Prioridade Local**: Se um arquivo `gunicorn.config.py` local for encontrado no projeto, ele terá prioridade sobre o da biblioteca
+- **Zero Configuração**: Não é necessário copiar ou manter arquivos de configuração no projeto
+
+### Como Funciona
+
+1. Ao executar `./entrypoint.sh gunicorn`, o script verifica se existe um arquivo `gunicorn.config.py` no diretório atual
+2. Se não encontrar um arquivo local, ele automaticamente referencia o arquivo da biblioteca `django-coralogix-otel`
+3. A configuração da biblioteca é otimizada para OpenTelemetry, com workers, threads e logging apropriados
+
+### Exemplo de Uso
+
+```bash
+# Uso simples - usa automaticamente o config da biblioteca
+./entrypoint.sh gunicorn
+
+# Com variáveis de ambiente personalizadas
+export GUNICORN_WORKERS=8
+export GUNICORN_THREADS=4
+./entrypoint.sh gunicorn
+
+# Com configuração customizada (sobrescreve o da biblioteca)
+./entrypoint.sh gunicorn --bind 0.0.0.0:9000 --workers 12
+```
+
+### Vantagens
+
+- **Simplicidade**: Não há necessidade de copiar arquivos de configuração para cada projeto
+- **Manutenção**: A configuração é mantida e atualizada junto com a biblioteca
+- **Otimizada**: Configuração específica para OpenTelemetry e performance
+- **Flexibilidade**: Ainda permite configurações locais quando necessário
+
+### Compatibilidade
+
+Esta funcionalidade é compatível com:
+- Docker containers
+- Kubernetes deployments
+- Ambientes de desenvolvimento local
+- Servidores de produção
+
 ## 🛠️ Exemplos de Uso
 
 ### Desenvolvimento Local

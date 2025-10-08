@@ -24,6 +24,7 @@ from .utils import (
     configure_django_settings,
     get_coralogix_headers,
     get_enabled_instrumentations,
+    get_gunicorn_config_path,
     get_otel_config,
     get_resource_attributes,
     is_instrumentation_enabled,
@@ -55,4 +56,5 @@ __all__ = [
     "get_enabled_instrumentations",
     "configure_django_settings",
     "get_otel_config",
+    "get_gunicorn_config_path",
 ]

@@ -110,13 +110,37 @@ run_gunicorn() {
 
     # Configurar Gunicorn com opções padrão se não especificadas
     if [ -z "$GUNICORN_CONFIG" ]; then
-        # Verificar se existe arquivo de configuração do Gunicorn
+        # Verificar se existe arquivo de configuração do Gunicorn local
         if [ -f "gunicorn.config.py" ]; then
-            echo "Using gunicorn.config.py configuration file"
+            echo "Using local gunicorn.config.py configuration file"
             export GUNICORN_CONFIG="--config gunicorn.config.py conf.asgi:application"
         else
-            echo "Using default Gunicorn configuration"
-            export GUNICORN_CONFIG=" conf.asgi:application -b 0.0.0.0:8080 --access-logfile - --error-logfile - --log-level warning -k uvicorn.workers.UvicornWorker"
+            # Tentar encontrar o arquivo na biblioteca instalada
+            echo "Local gunicorn.config.py not found, searching in django-coralogix-otel library..."
+            library_config=$(python -c "
+import sys
+try:
+    from django_coralogix_otel import get_gunicorn_config_path
+    config_path = get_gunicorn_config_path()
+    if config_path:
+        print(config_path)
+    else:
+        sys.exit(1)
+except ImportError:
+    sys.stderr.write('django-coralogix-otel not available\n')
+    sys.exit(1)
+except Exception as e:
+    sys.stderr.write(f'Error getting gunicorn config: {e}\n')
+    sys.exit(1)
+" 2>/dev/null)
+
+            if [ $? -eq 0 ] && [ -n "$library_config" ] && [ -f "$library_config" ]; then
+                echo "Using django-coralogix-otel library gunicorn.config.py: $library_config"
+                export GUNICORN_CONFIG="--config $library_config conf.asgi:application"
+            else
+                echo "gunicorn.config.py not found in library, using default Gunicorn configuration"
+                export GUNICORN_CONFIG=" conf.asgi:application -b 0.0.0.0:8080 --access-logfile - --error-logfile - --log-level warning -k uvicorn.workers.UvicornWorker"
+            fi
         fi
     fi
 

@@ -13,6 +13,7 @@ Um pacote Python para auto-instrumentação OpenTelemetry com Coralogix para apl
 - **Estratégia Híbrida**: Combina auto-instrumentação com configuração manual
 - **Suporte Kubernetes**: Compatível com variáveis de ambiente padrão do Kubernetes
 - **Atributos Coralogix**: Atributos customizados `cx.application.name` e `cx.subsystem.name`
+- **Configuração Gunicorn Automática**: Referência automática ao gunicorn.config.py otimizado
 - **Fallbacks Robusto**: Continua funcionando mesmo sem OpenTelemetry disponível
 - **Desenvolvimento & Produção**: Suporte a exportadores console (dev) e OTLP (prod)
 - **Instrumentações Suportadas**: Django, PostgreSQL, Requests, Logging, WSGI/ASGI, Kafka
@@ -487,6 +488,7 @@ O pacote inclui scripts para facilitar a execução de aplicações Django com a
 
 - **`entrypoint.sh`**: Script bash para execução com auto-instrumentação
 - **`gunicorn.config.py`**: Configuração otimizada do Gunicorn para OpenTelemetry
+- **Uso Automático**: Referência automática ao gunicorn.config.py da biblioteca quando não há arquivo local
 
 ### Script de Entrypoint (`entrypoint.sh`)
 
@@ -517,10 +519,25 @@ O pacote inclui scripts para facilitar a execução de aplicações Django com a
 
 ### Configuração do Gunicorn (`gunicorn.config.py`)
 
-#### Uso com Entrypoint
+#### Uso Automático com Entrypoint
 
 ```bash
-# Usar configuração customizada do Gunicorn
+# Uso simplificado - usa automaticamente o config da biblioteca
+./entrypoint.sh gunicorn
+
+# Com variáveis de ambiente personalizadas
+export GUNICORN_WORKERS=8
+export GUNICORN_THREADS=4
+./entrypoint.sh gunicorn
+```
+
+#### Uso com Configuração Local
+
+```bash
+# Se você tiver um gunicorn.config.py local, ele terá prioridade
+./entrypoint.sh gunicorn
+
+# Ou especificar explicitamente
 export GUNICORN_CONFIG="--config gunicorn.config.py myproject.wsgi:application"
 ./entrypoint.sh gunicorn
 ```
@@ -528,17 +545,19 @@ export GUNICORN_CONFIG="--config gunicorn.config.py myproject.wsgi:application"
 #### Uso Direto
 
 ```bash
-# Executar Gunicorn com configuração customizada
+# Executar Gunicorn com configuração da biblioteca
 opentelemetry-instrument gunicorn --config gunicorn.config.py myproject.wsgi:application
 ```
 
 #### Características da Configuração
 
+- **Uso Automático**: O entrypoint.sh referencia automaticamente o arquivo da biblioteca
 - **Otimizado para OpenTelemetry**: Configurações específicas para auto-instrumentação
 - **Performance**: Workers e threads otimizados para diferentes ambientes
 - **Logging**: Logs estruturados compatíveis com OpenTelemetry
 - **Hooks**: Hooks para monitoramento e debugging
 - **Compatibilidade**: Suporte a WSGI e ASGI
+- **Zero Configuração**: Não é necessário copiar o arquivo para o projeto
 
 #### Variáveis de Ambiente para Gunicorn
 
@@ -563,6 +582,34 @@ GUNICORN_ERROR_LOG=-
 # Configurações específicas para ASGI
 GUNICORN_WORKER_CLASS=uvicorn.workers.UvicornWorker
 GUNICORN_ASGI_OPTIMIZED=true
+```
+
+## 🚀 Configuração Automática do Gunicorn
+
+A biblioteca `django-coralogix-otel` agora fornece configuração automática do Gunicorn, eliminando a necessidade de copiar arquivos de configuração para seus projetos.
+
+### Como Funciona
+
+1. **Detecção Automática**: Ao executar `./entrypoint.sh gunicorn`, o script verifica se existe um arquivo `gunicorn.config.py` no diretório do projeto
+2. **Uso da Biblioteca**: Se não encontrar um arquivo local, o script automaticamente utiliza o `gunicorn.config.py` fornecido pela biblioteca
+3. **Prioridade Local**: Arquivos de configuração locais sempre têm prioridade sobre o da biblioteca
+4. **Configuração Otimizada**: O arquivo da biblioteca é pré-otimizado para OpenTelemetry e performance
+
+### Benefícios
+
+- **Zero Configuração**: Não há necessidade de copiar ou manter arquivos de configuração
+- **Sempre Atualizado**: A configuração é mantida e atualizada junto com a biblioteca
+- **Otimização Pronta**: Configuração específica para OpenTelemetry e performance
+- **Flexibilidade**: Ainda permite personalização quando necessário
+
+### Exemplos de Uso
+
+```bash
+# Uso mais simples possível - tudo configurado automaticamente
+docker run -e CORALOGIX_PRIVATE_KEY=... my-django-image
+
+# Ou localmente
+./entrypoint.sh gunicorn
 ```
 
 ### Documentação Completa

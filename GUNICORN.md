@@ -6,10 +6,25 @@ O arquivo `gunicorn.config.py` fornece uma configuração otimizada do Gunicorn 
 
 ## 🚀 Uso Básico
 
-### Com Entrypoint Script
+### Uso Automático com Entrypoint (Recomendado)
 
 ```bash
-# Usar configuração customizada do Gunicorn
+# Uso mais simples - usa automaticamente o config da biblioteca
+./entrypoint.sh gunicorn
+
+# Com variáveis de ambiente personalizadas
+export GUNICORN_WORKERS=8
+export GUNICORN_THREADS=4
+./entrypoint.sh gunicorn
+```
+
+### Com Entrypoint Script (Configuração Local)
+
+```bash
+# Se você tiver um gunicorn.config.py local, ele terá prioridade
+./entrypoint.sh gunicorn
+
+# Ou especificar explicitamente
 export GUNICORN_CONFIG="--config gunicorn.config.py myproject.wsgi:application"
 ./entrypoint.sh gunicorn
 ```
@@ -17,14 +32,61 @@ export GUNICORN_CONFIG="--config gunicorn.config.py myproject.wsgi:application"
 ### Uso Direto
 
 ```bash
-# Executar Gunicorn com configuração customizada
+# Executar Gunicorn com configuração da biblioteca
 opentelemetry-instrument gunicorn --config gunicorn.config.py myproject.wsgi:application
 ```
+
+## 📦 Uso Automático da Biblioteca
+
+O `django-coralogix-otel` agora fornece configuração automática do Gunicorn, eliminando a necessidade de copiar arquivos para seus projetos.
+
+### Como Funciona
+
+1. **Detecção Automática**: O entrypoint.sh verifica se existe um arquivo `gunicorn.config.py` no diretório do projeto
+2. **Uso da Biblioteca**: Se não encontrar um arquivo local, ele automaticamente utiliza o arquivo da biblioteca
+3. **Prioridade Local**: Arquivos locais sempre têm prioridade sobre o da biblioteca
+4. **Zero Configuração**: Não é necessário copiar ou manter arquivos de configuração
+
+### Vantagens
+
+- **Simplicidade**: Não há necessidade de copiar arquivos de configuração
+- **Manutenção**: A configuração é mantida e atualizada com a biblioteca
+- **Otimizada**: Configuração específica para OpenTelemetry
+- **Flexibilidade**: Ainda permite configurações locais quando necessário
 
 ### Com Docker
 
 ```dockerfile
-# Dockerfile
+# Dockerfile com uso automático (recomendado)
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Instalar dependências
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código da aplicação
+COPY . .
+
+# Copiar script de entrypoint
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Variáveis de ambiente
+ENV DJANGO_CORALOGIX_AUTO_INIT=true
+ENV GUNICORN_WORKERS=4
+ENV GUNICORN_THREADS=2
+
+# Usar entrypoint (usará automaticamente o config da biblioteca)
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["gunicorn"]
+```
+
+### Docker com Configuração Local
+
+```dockerfile
+# Dockerfile tradicional com configuração local
 FROM python:3.9-slim
 
 WORKDIR /app

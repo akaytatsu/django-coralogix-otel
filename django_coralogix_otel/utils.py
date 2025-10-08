@@ -15,7 +15,7 @@ def validate_environment_variables() -> bool:
     """
     Valida se todas as variáveis de ambiente necessárias estão definidas
     com suporte completo às variáveis do Kubernetes
-    
+
     Returns:
         bool: True se todas as variáveis necessárias estão presentes
     """
@@ -24,7 +24,7 @@ def validate_environment_variables() -> bool:
         "CORALOGIX_PRIVATE_KEY",
         "OTEL_EXPORTER_OTLP_ENDPOINT",
     ]
-    
+
     # Variáveis opcionais com valores padrão
     optional_vars = {
         "OTEL_SERVICE_NAME": "django-application",
@@ -38,22 +38,22 @@ def validate_environment_variables() -> bool:
         "OTEL_PYTHON_PSYCOPG2_INSTRUMENT": "true",
         "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": "true",
     }
-    
+
     # Verificar variáveis obrigatórias
     missing_required = []
     for var in required_vars:
         if not os.getenv(var):
             missing_required.append(var)
-    
+
     if missing_required:
         logger.error(f"Variáveis de ambiente obrigatórias ausentes: {missing_required}")
         return False
-    
+
     # Log das variáveis opcionais ausentes
     missing_optional = [var for var in optional_vars if not os.getenv(var)]
     if missing_optional:
         logger.info(f"Usando valores padrão para variáveis opcionais: {missing_optional}")
-    
+
     logger.info("Variáveis de ambiente validadas com sucesso")
     return True
 
@@ -62,7 +62,7 @@ def get_coralogix_headers() -> Dict[str, str]:
     """
     Retorna os headers necessários para comunicação com Coralogix
     com fallbacks para valores padrão
-    
+
     Returns:
         Dict[str, str]: Headers para requisições OTLP
     """
@@ -77,7 +77,7 @@ def get_resource_attributes() -> Dict[str, str]:
     """
     Retorna os atributos de resource para OpenTelemetry
     com parsing de OTEL_RESOURCE_ATTRIBUTES do Kubernetes
-    
+
     Returns:
         Dict[str, str]: Atributos do resource
     """
@@ -90,11 +90,11 @@ def get_resource_attributes() -> Dict[str, str]:
         "coralogix.application": os.getenv("CORALOGIX_APPLICATION_NAME", "django-app"),
         "coralogix.subsystem": os.getenv("CORALOGIX_SUBSYSTEM_NAME", "backend"),
     }
-    
+
     # Adicionar atributos do Kubernetes se disponíveis
     k8s_attributes = _parse_k8s_resource_attributes()
     attributes.update(k8s_attributes)
-    
+
     # Filtrar valores None
     return {k: v for k, v in attributes.items() if v is not None}
 
@@ -102,16 +102,16 @@ def get_resource_attributes() -> Dict[str, str]:
 def _parse_k8s_resource_attributes() -> Dict[str, str]:
     """
     Parseia a variável OTEL_RESOURCE_ATTRIBUTES do formato Kubernetes
-    
+
     Formato esperado: key1=value1,key2=value2
-    
+
     Returns:
         Dict[str, str]: Atributos parseados
     """
     resource_attrs = os.getenv("OTEL_RESOURCE_ATTRIBUTES", "")
     if not resource_attrs:
         return {}
-    
+
     try:
         attributes = {}
         pairs = resource_attrs.split(',')
@@ -129,7 +129,7 @@ def is_opentelemetry_available() -> bool:
     """
     Verifica se as dependências do OpenTelemetry estão disponíveis
     com fallback para operação sem OpenTelemetry
-    
+
     Returns:
         bool: True se OpenTelemetry estiver disponível
     """
@@ -146,10 +146,10 @@ def is_instrumentation_enabled(instrumentation_name: str) -> bool:
     """
     Verifica se uma instrumentação específica está habilitada
     baseado nas variáveis de ambiente do Kubernetes
-    
+
     Args:
         instrumentation_name: Nome da instrumentação (django, requests, etc.)
-        
+
     Returns:
         bool: True se a instrumentação está habilitada
     """
@@ -160,7 +160,7 @@ def is_instrumentation_enabled(instrumentation_name: str) -> bool:
 def get_enabled_instrumentations() -> List[str]:
     """
     Retorna a lista de instrumentações habilitadas baseado nas variáveis de ambiente
-    
+
     Returns:
         List[str]: Lista de instrumentações habilitadas
     """
@@ -173,7 +173,7 @@ def get_enabled_instrumentations() -> List[str]:
         "wsgi",
         "asgi",
     ]
-    
+
     return [inst for inst in instrumentations if is_instrumentation_enabled(inst)]
 
 
@@ -181,9 +181,9 @@ def configure_django_settings() -> Dict[str, Any]:
     """
     Configura as settings do Django para OpenTelemetry
     com fallbacks para operação sem OpenTelemetry
-    
+
     Esta função deve ser chamada no settings.py do projeto Django
-    
+
     Returns:
         Dict[str, Any]: Configurações a serem adicionadas ao settings.py
     """
@@ -193,7 +193,7 @@ def configure_django_settings() -> Dict[str, Any]:
             'django_coralogix_otel.middleware.OpenTelemetryMiddleware',
         ],
     }
-    
+
     # Configurações de logging apenas se OpenTelemetry estiver disponível
     if is_opentelemetry_available():
         settings_to_add['LOGGING'] = {
@@ -210,14 +210,14 @@ def configure_django_settings() -> Dict[str, Any]:
                 'handlers': ['opentelemetry'],
             },
         }
-    
+
     return settings_to_add
 
 
 def get_otel_config() -> Dict[str, Any]:
     """
     Retorna a configuração OpenTelemetry baseada em variáveis de ambiente
-    
+
     Returns:
         Dict[str, Any]: Configuração OpenTelemetry
     """
@@ -230,10 +230,42 @@ def get_otel_config() -> Dict[str, Any]:
     }
 
 
+def get_gunicorn_config_path() -> Optional[str]:
+    """
+    Retorna o caminho completo para o arquivo gunicorn.config.py incluído na biblioteca.
+
+    Esta função permite que projetos Django acessem o arquivo de configuração
+    otimizado para OpenTelemetry sem precisar copiá-lo manualmente.
+
+    Returns:
+        Optional[str]: Caminho completo para o gunicorn.config.py ou None se não encontrado
+    """
+    # Obter o diretório do pacote atual
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Tentar encontrar o gunicorn.config.py no diretório raiz da biblioteca
+    config_paths = [
+        # Caminho para instalação normal
+        os.path.join(os.path.dirname(pkg_dir), 'gunicorn.config.py'),
+        # Caminho para instalação em modo desenvolvimento
+        os.path.join(pkg_dir, '..', 'gunicorn.config.py'),
+        # Caminho alternativo para diferentes estruturas de pacote
+        os.path.join(pkg_dir, '..', '..', 'gunicorn.config.py'),
+    ]
+
+    for config_path in config_paths:
+        if os.path.exists(config_path) and os.path.isfile(config_path):
+            logger.debug(f"gunicorn.config.py encontrado em: {config_path}")
+            return config_path
+
+    logger.warning("gunicorn.config.py não encontrado na biblioteca django-coralogix-otel")
+    return None
+
+
 def safe_configure_opentelemetry() -> bool:
     """
     Configuração segura do OpenTelemetry com fallbacks robustos
-    
+
     Returns:
         bool: True se a configuração foi bem-sucedida
     """
@@ -241,14 +273,14 @@ def safe_configure_opentelemetry() -> bool:
         if not validate_environment_variables():
             logger.warning("Configuração de ambiente inválida, OpenTelemetry não será configurado")
             return False
-        
+
         if not is_opentelemetry_available():
             logger.warning("OpenTelemetry não disponível, configuração ignorada")
             return False
-        
+
         from .config import configure_opentelemetry
         return configure_opentelemetry()
-        
+
     except Exception as e:
         logger.error(f"Erro seguro ao configurar OpenTelemetry: {e}")
         return False

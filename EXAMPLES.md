@@ -487,7 +487,7 @@ if __name__ == "__main__":
 ### Exemplo 13: Uso do Entrypoint Script
 
 ```bash
-# Executar com Gunicorn (produção)
+# Executar com Gunicorn (produção) - usa automaticamente o config da biblioteca
 ./entrypoint.sh gunicorn
 
 # Executar com Django Development Server
@@ -502,6 +502,22 @@ if __name__ == "__main__":
 
 # Executar scripts Python
 ./entrypoint.sh python my_script.py
+```
+
+### Exemplo 13a: Uso Automático do Gunicorn Config
+
+```bash
+# Uso mais simples possível - tudo configurado automaticamente
+./entrypoint.sh gunicorn
+
+# Com variáveis de ambiente personalizadas
+export GUNICORN_WORKERS=8
+export GUNICORN_THREADS=4
+export GUNICORN_TIMEOUT=60
+./entrypoint.sh gunicorn
+
+# O entrypoint.sh usará automaticamente o gunicorn.config.py da biblioteca
+# Não há necessidade de copiar arquivos de configuração para o projeto
 ```
 
 ### Exemplo 14: Configuração do Gunicorn
@@ -534,7 +550,40 @@ def post_fork(server, worker):
 ### Exemplo 15: Docker com Scripts de Inicialização
 
 ```dockerfile
-# Dockerfile com entrypoint e gunicorn config
+# Dockerfile com uso automático (recomendado)
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Instalar dependências
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código da aplicação
+COPY . .
+
+# Copiar apenas o script de entrypoint
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Variáveis de ambiente
+ENV DJANGO_CORALOGIX_AUTO_INIT=true
+ENV OTEL_LOG_LEVEL=INFO
+ENV DJANGO_DEBUG=False
+ENV GUNICORN_WORKERS=4
+ENV GUNICORN_THREADS=2
+
+EXPOSE 8000
+
+# Usar entrypoint (usará automaticamente o config da biblioteca)
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["gunicorn"]
+```
+
+### Exemplo 15a: Docker com Configuração Local (Opcional)
+
+```dockerfile
+# Dockerfile tradicional com configuração local
 FROM python:3.9-slim
 
 WORKDIR /app
@@ -548,7 +597,7 @@ COPY . .
 
 # Copiar scripts de inicialização
 COPY entrypoint.sh /usr/local/bin/
-COPY gunicorn.config.py /app/
+COPY gunicorn.config.py /app/  # Configuração local
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Variáveis de ambiente

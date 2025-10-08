@@ -54,24 +54,24 @@ setup(
         # OpenTelemetry Core
         "opentelemetry-api>=1.20.0",
         "opentelemetry-sdk>=1.20.0",
-        "opentelemetry-distro[otlp]>=0.41.0",
+        "opentelemetry-distro[otlp]>=0.47b0",
         # OpenTelemetry Instrumentation
-        "opentelemetry-instrumentation>=0.41.0",
-        "opentelemetry-instrumentation-django>=0.41.0",
-        "opentelemetry-instrumentation-psycopg2>=0.41.0",
-        "opentelemetry-instrumentation-requests>=0.41.0",
-        "opentelemetry-instrumentation-logging>=0.41.0",
-        "opentelemetry-instrumentation-wsgi>=0.41.0",
-        "opentelemetry-instrumentation-asgi>=0.41.0",
+        "opentelemetry-instrumentation>=0.47b0",
+        "opentelemetry-instrumentation-django>=0.47b0",
+        "opentelemetry-instrumentation-psycopg2>=0.47b0",
+        "opentelemetry-instrumentation-requests>=0.47b0",
+        "opentelemetry-instrumentation-logging>=0.47b0",
+        "opentelemetry-instrumentation-wsgi>=0.47b0",
+        "opentelemetry-instrumentation-asgi>=0.47b0",
         # OpenTelemetry Exporters
         "opentelemetry-exporter-otlp-proto-http>=1.20.0",
         # Django
         "Django>=3.2",
         # Dependências opcionais (instaladas apenas se necessárias)
-        "opentelemetry-instrumentation-kafka-python>=0.41.0; extra == 'kafka'",
+        "opentelemetry-instrumentation-kafka-python>=0.47b0; extra == 'kafka'",
     ],
     extras_require={
-        "kafka": ["opentelemetry-instrumentation-kafka-python>=0.41.0"],
+        "kafka": ["opentelemetry-instrumentation-kafka-python>=0.47b0"],
         "dev": [
             "pytest>=6.0",
             "pytest-django>=4.5.0",

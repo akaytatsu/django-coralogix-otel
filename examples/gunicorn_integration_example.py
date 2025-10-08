@@ -22,14 +22,14 @@ def setup_environment():
         "DJANGO_CORALOGIX_AUTO_INIT": "true",
         "OTEL_LOG_LEVEL": "INFO",
         "DJANGO_DEBUG": "True",
-        
+
         # Configurações do Gunicorn
         "GUNICORN_WORKERS": "2",
         "GUNICORN_THREADS": "2",
         "GUNICORN_TIMEOUT": "30",
         "GUNICORN_LOG_LEVEL": "info",
     }
-    
+
     for key, value in env_vars.items():
         os.environ[key] = value
         print(f"✅ {key}={value}")
@@ -66,7 +66,7 @@ def check_entrypoint_script():
 def test_gunicorn_config():
     """Testar configuração do Gunicorn"""
     print("\n🧪 Testando configuração do Gunicorn...")
-    
+
     try:
         # Verificar sintaxe do arquivo de configuração
         result = subprocess.run(
@@ -74,28 +74,28 @@ def test_gunicorn_config():
             capture_output=True,
             text=True
         )
-        
+
         if result.returncode == 0:
             print("✅ Sintaxe do gunicorn.config.py está correta")
         else:
             print(f"❌ Erro na sintaxe: {result.stderr}")
             return False
-            
+
         # Testar se o arquivo pode ser executado pelo Python
         result = subprocess.run(
             ["python", "-c", "import ast; ast.parse(open('gunicorn.config.py').read())"],
             capture_output=True,
             text=True
         )
-        
+
         if result.returncode == 0:
             print("✅ gunicorn.config.py pode ser analisado pelo Python")
         else:
             print(f"❌ Erro na análise: {result.stderr}")
             return False
-            
+
         return True
-        
+
     except Exception as e:
         print(f"❌ Erro ao testar configuração: {e}")
         return False
@@ -127,20 +127,20 @@ application = get_wsgi_application()
 def show_usage_examples():
     """Mostrar exemplos de uso"""
     print("\n📋 EXEMPLOS DE USO:")
-    
+
     print("\n1. Usando entrypoint.sh:")
     print("   ./entrypoint.sh gunicorn")
-    
+
     print("\n2. Usando Gunicorn diretamente:")
     print("   opentelemetry-instrument gunicorn --config gunicorn.config.py myproject.wsgi:application")
-    
+
     print("\n3. Com configuração customizada:")
     print("   export GUNICORN_CONFIG=\"--config gunicorn.config.py --bind 0.0.0.0:8080\"")
     print("   ./entrypoint.sh gunicorn")
-    
+
     print("\n4. Para desenvolvimento:")
     print("   ./entrypoint.sh runserver")
-    
+
     print("\n5. Para executar setup:")
     print("   ./entrypoint.sh setup")
 
@@ -195,7 +195,7 @@ data:
   OTEL_DEPLOYMENT_ENVIRONMENT: "production"
   CORALOGIX_APPLICATION_NAME: "my-application"
   CORALOGIX_SUBSYSTEM_NAME: "backend"
-  
+
   # Configurações do Gunicorn
   GUNICORN_WORKERS: "4"
   GUNICORN_THREADS: "2"
@@ -213,39 +213,39 @@ def main():
     print("=" * 60)
     print("🧪 EXEMPLO DE INTEGRAÇÃO GUNICORN + DJANGO-CORALOGIX-OTEL")
     print("=" * 60)
-    
+
     # Configurar ambiente
     setup_environment()
-    
+
     # Verificar arquivos
     print("\n📁 VERIFICANDO ARQUIVOS:")
     gunicorn_ok = check_gunicorn_config()
     entrypoint_ok = check_entrypoint_script()
-    
+
     if not gunicorn_ok or not entrypoint_ok:
         print("\n❌ Arquivos necessários não encontrados")
         return
-    
+
     # Testar configuração
     config_ok = test_gunicorn_config()
-    
+
     if config_ok:
         print("\n✅ TODOS OS TESTES PASSARAM!")
-        
+
         # Gerar arquivo WSGI de exemplo
         generate_sample_wsgi()
-        
+
         # Mostrar exemplos de uso
         show_usage_examples()
         show_docker_example()
         show_kubernetes_example()
-        
+
         print("\n🎯 PRÓXIMOS PASSOS:")
         print("1. Configure CORALOGIX_PRIVATE_KEY com sua chave real")
         print("2. Ajuste myproject.wsgi:application para seu projeto")
         print("3. Execute: ./entrypoint.sh gunicorn")
         print("4. Verifique os logs para confirmar que OpenTelemetry está funcionando")
-        
+
     else:
         print("\n❌ Alguns testes falharam. Verifique a configuração.")
 

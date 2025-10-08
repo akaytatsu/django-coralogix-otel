@@ -145,8 +145,9 @@ def auto_initialize() -> bool:
     return False
 
 
-# Inicialização automática quando o módulo é importado
-_initialized = auto_initialize()
+# Status de inicialização - será definido posteriormente
+_initialized = False
+_initialization_attempted = False
 
 
 def get_initialization_status() -> bool:
@@ -159,6 +160,112 @@ def get_initialization_status() -> bool:
     return _initialized
 
 
+def is_django_configured() -> bool:
+    """
+    Verifica se o Django está configurado e pronto para inicialização
+    Evita problemas de DATABASES e ALLOWED_HOSTS não configurados
+
+    Returns:
+        bool: True se o Django está configurado
+    """
+    try:
+        # Verificar se o Django está disponível
+        import django
+        from django.conf import settings
+
+        # Verificar configurações críticas do Django
+        if not hasattr(settings, 'DATABASES'):
+            logger.warning("Django DATABASES não configurado")
+            return False
+
+        if not hasattr(settings, 'ALLOWED_HOSTS'):
+            logger.warning("Django ALLOWED_HOSTS não configurado")
+            return False
+
+        # Verificar se as configurações básicas estão definidas
+        if not settings.DATABASES:
+            logger.warning("DATABASES está vazio")
+            return False
+
+        logger.debug("Django está configurado e pronto para OpenTelemetry")
+        return True
+
+    except ImportError:
+        logger.warning("Django não está disponível")
+        return False
+    except Exception as e:
+        logger.warning(f"Erro ao verificar configuração Django: {e}")
+        return False
+
+
+def conditional_initialize_opentelemetry(enable_console_exporter: bool = False) -> bool:
+    """
+    Inicialização condicional do OpenTelemetry que verifica se o Django está configurado
+    antes de prosseguir com a inicialização
+
+    Args:
+        enable_console_exporter: Se True, habilita exportador console para desenvolvimento
+
+    Returns:
+        bool: True se a inicialização foi bem-sucedida
+    """
+    global _initialized, _initialization_attempted
+
+    if _initialization_attempted:
+        logger.debug("Inicialização do OpenTelemetry já foi tentada anteriormente")
+        return _initialized
+
+    _initialization_attempted = True
+
+    # Verificar se o Django está configurado antes de inicializar
+    if not is_django_configured():
+        logger.warning("Django não está configurado. Adiando inicialização do OpenTelemetry.")
+        return False
+
+    logger.info("Django está configurado. Iniciando inicialização do OpenTelemetry...")
+
+    # Configuração segura do OpenTelemetry
+    if not safe_configure_opentelemetry():
+        logger.warning("Configuração OpenTelemetry falhou, continuando sem telemetria")
+        return False
+
+    try:
+        # Configurar OpenTelemetry com opção de console
+        configure_opentelemetry(enable_console_exporter=enable_console_exporter)
+
+        # Aplicar instrumentações automáticas baseadas em configuração
+        _apply_auto_instrumentation()
+
+        _initialized = True
+        logger.info("OpenTelemetry inicializado com sucesso para Coralogix (estratégia híbrida)")
+        return True
+
+    except Exception as e:
+        logger.error(f"Erro ao inicializar OpenTelemetry: {e}")
+        return False
+
+
+def delayed_auto_initialize() -> bool:
+    """
+    Inicialização automática com verificação de configuração Django
+    Esta função deve ser chamada após o Django estar configurado
+
+    Returns:
+        bool: True se a inicialização automática foi bem-sucedida
+    """
+    auto_init = os.getenv("DJANGO_CORALOGIX_AUTO_INIT", "false").lower()
+
+    if auto_init == "true":
+        logger.info("Inicialização automática do OpenTelemetry ativada (estratégia híbrida)")
+
+        # Verificar se deve habilitar console exporter para desenvolvimento
+        enable_console = os.getenv("OTEL_LOG_LEVEL") == "DEBUG" or os.getenv("DJANGO_DEBUG") == "True"
+
+        return conditional_initialize_opentelemetry(enable_console_exporter=enable_console)
+
+    return False
+
+
 def instrument_django():
     """
     Instrumenta automaticamente o Django com OpenTelemetry
@@ -168,8 +275,14 @@ def instrument_django():
     baseada nas variáveis de ambiente do Kubernetes
     """
     if not _initialized:
-        logger.warning("OpenTelemetry não inicializado. Instrumentação ignorada.")
-        return
+        # Tentar inicializar condicionalmente se ainda não foi tentado
+        if not _initialization_attempted:
+            logger.info("Tentando inicialização condicional do OpenTelemetry para instrumentação")
+            conditional_initialize_opentelemetry()
+
+        if not _initialized:
+            logger.warning("OpenTelemetry não inicializado. Instrumentação ignorada.")
+            return
 
     try:
         _apply_auto_instrumentation()
@@ -188,8 +301,14 @@ def hybrid_instrumentation():
     para garantir que todas as bibliotecas estejam disponíveis
     """
     if not _initialized:
-        logger.warning("OpenTelemetry não inicializado. Instrumentação híbrida ignorada.")
-        return False
+        # Tentar inicializar condicionalmente se ainda não foi tentado
+        if not _initialization_attempted:
+            logger.info("Tentando inicialização condicional do OpenTelemetry para instrumentação híbrida")
+            conditional_initialize_opentelemetry()
+
+        if not _initialized:
+            logger.warning("OpenTelemetry não inicializado. Instrumentação híbrida ignorada.")
+            return False
 
     try:
         # Aplicar instrumentação automática
@@ -212,4 +331,7 @@ __all__ = [
     "instrument_django",
     "hybrid_instrumentation",
     "safe_configure_opentelemetry",
+    "conditional_initialize_opentelemetry",
+    "delayed_auto_initialize",
+    "is_django_configured",
 ]

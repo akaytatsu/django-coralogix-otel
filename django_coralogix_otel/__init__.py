@@ -18,6 +18,9 @@ from .entrypoint import (
     initialize_opentelemetry,
     instrument_django,
     safe_configure_opentelemetry,
+    conditional_initialize_opentelemetry,
+    delayed_auto_initialize,
+    is_django_configured,
 )
 from .middleware import OpenTelemetryMiddleware
 from .utils import (
@@ -46,6 +49,9 @@ __all__ = [
     "instrument_django",
     "hybrid_instrumentation",
     "safe_configure_opentelemetry",
+    "conditional_initialize_opentelemetry",
+    "delayed_auto_initialize",
+    "is_django_configured",
     # Utilitários
     "validate_environment_variables",
     "get_coralogix_headers",

@@ -61,6 +61,56 @@ if [ "$APP_ENVIRONMENT" = "local" ] || [ "$DJANGO_DEBUG" = "True" ] || [ "$OTEL_
     export OTEL_LOGS_EXPORTER=console,otlp
 fi
 
+# Função para verificar se o Django está configurado
+check_django_configured() {
+    echo "Verificando configuração do Django..."
+    
+    # Criar script Python para verificar configuração Django
+    python3 - << 'EOF'
+import os
+import sys
+
+try:
+    # Configurar Django settings module se não estiver definido
+    if not os.getenv('DJANGO_SETTINGS_MODULE'):
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'test_project.settings')
+    
+    import django
+    from django.conf import settings
+    
+    # Tentar configurar Django
+    django.setup()
+    
+    # Verificar configurações críticas
+    if not hasattr(settings, 'DATABASES') or not settings.DATABASES:
+        print("ERROR: Django DATABASES não configurado")
+        sys.exit(1)
+        
+    if not hasattr(settings, 'ALLOWED_HOSTS'):
+        print("ERROR: Django ALLOWED_HOSTS não configurado")
+        sys.exit(1)
+        
+    print("SUCCESS: Django está configurado corretamente")
+    sys.exit(0)
+    
+except ImportError as e:
+    print(f"ERROR: Django não disponível: {e}")
+    sys.exit(1)
+except Exception as e:
+    print(f"ERROR: Erro na configuração Django: {e}")
+    sys.exit(1)
+EOF
+
+    local result=$?
+    if [ $result -ne 0 ]; then
+        echo "ERRO: Django não está configurado corretamente"
+        return 1
+    fi
+    
+    echo "Django está configurado e pronto para OpenTelemetry"
+    return 0
+}
+
 # Função para setup inicial do Django
 setup_django() {
     echo "=== Django Setup ==="
@@ -69,6 +119,12 @@ setup_django() {
     if [ "$SKIP_DJANGO_SETUP" = "true" ]; then
         echo "Skipping Django setup (SKIP_DJANGO_SETUP=true)"
         return 0
+    fi
+
+    # Verificar se o Django está configurado antes de executar comandos
+    if ! check_django_configured; then
+        echo "ERRO: Django não está configurado. Execute os comandos de setup primeiro."
+        return 1
     fi
 
     echo "Running Database Migrations..."
@@ -93,6 +149,15 @@ setup_django() {
 # Função para executar comandos Django com estratégia híbrida
 run_django_command() {
     echo "Executing: opentelemetry-instrument $@"
+    
+    # Verificar se o Django está configurado para comandos críticos
+    if [[ "$*" == *"manage.py"* ]] && [[ "$*" != *"check"* ]]; then
+        if ! check_django_configured; then
+            echo "ERRO: Django não está configurado. Execute 'python manage.py check' primeiro."
+            return 1
+        fi
+    fi
+    
     exec opentelemetry-instrument "$@"
 }
 
@@ -104,6 +169,12 @@ run_gunicorn() {
     echo "Environment: $APP_ENVIRONMENT"
     echo "Strategy: Hybrid (auto-instrumentation + manual)"
     echo "Gunicorn Config: $GUNICORN_CONFIG"
+
+    # Verificar se o Django está configurado antes de iniciar
+    if ! check_django_configured; then
+        echo "ERRO: Django não está configurado. Execute os comandos de setup primeiro."
+        return 1
+    fi
 
     # Executar setup do Django antes de iniciar o servidor
     setup_django
@@ -130,6 +201,12 @@ run_development_server() {
     echo "Environment: Development"
     echo "Strategy: Hybrid (auto-instrumentation + manual)"
 
+    # Verificar se o Django está configurado antes de iniciar
+    if ! check_django_configured; then
+        echo "ERRO: Django não está configurado. Execute os comandos de setup primeiro."
+        return 1
+    fi
+
     # Executar setup do Django antes de iniciar o servidor
     setup_django
 
@@ -142,6 +219,12 @@ run_uvicorn() {
     echo "Service: $OTEL_SERVICE_NAME"
     echo "Environment: $APP_ENVIRONMENT"
     echo "Strategy: Hybrid (auto-instrumentation + manual)"
+
+    # Verificar se o Django está configurado antes de iniciar
+    if ! check_django_configured; then
+        echo "ERRO: Django não está configurado. Execute os comandos de setup primeiro."
+        return 1
+    fi
 
     # Executar setup do Django antes de iniciar o servidor
     setup_django

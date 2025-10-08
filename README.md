@@ -481,11 +481,16 @@ else:
 - **Exceções**: Contagem e tipos de erros
 - **Performance de queries**: Timing de operações de banco
 
-## 🐳 Script de Entrypoint
+## 🐳 Scripts de Inicialização
 
-O pacote inclui um script bash `entrypoint.sh` para facilitar a execução de aplicações Django com auto-instrumentação OpenTelemetry.
+O pacote inclui scripts para facilitar a execução de aplicações Django com auto-instrumentação OpenTelemetry:
 
-### Uso Básico
+- **`entrypoint.sh`**: Script bash para execução com auto-instrumentação
+- **`gunicorn.config.py`**: Configuração otimizada do Gunicorn para OpenTelemetry
+
+### Script de Entrypoint (`entrypoint.sh`)
+
+#### Uso Básico
 
 ```bash
 # Executar com Gunicorn (produção)
@@ -502,7 +507,7 @@ O pacote inclui um script bash `entrypoint.sh` para facilitar a execução de ap
 ./entrypoint.sh manage.py shell
 ```
 
-### Características do Entrypoint
+#### Características do Entrypoint
 
 - **Estratégia Híbrida**: Combina auto-instrumentação com configuração manual
 - **Setup Automático**: Executa migrations e collectstatic automaticamente
@@ -510,13 +515,65 @@ O pacote inclui um script bash `entrypoint.sh` para facilitar a execução de ap
 - **Ambientes Flexíveis**: Desenvolvimento local e produção
 - **Compatibilidade**: Docker, Kubernetes, desenvolvimento local
 
+### Configuração do Gunicorn (`gunicorn.config.py`)
+
+#### Uso com Entrypoint
+
+```bash
+# Usar configuração customizada do Gunicorn
+export GUNICORN_CONFIG="--config gunicorn.config.py myproject.wsgi:application"
+./entrypoint.sh gunicorn
+```
+
+#### Uso Direto
+
+```bash
+# Executar Gunicorn com configuração customizada
+opentelemetry-instrument gunicorn --config gunicorn.config.py myproject.wsgi:application
+```
+
+#### Características da Configuração
+
+- **Otimizado para OpenTelemetry**: Configurações específicas para auto-instrumentação
+- **Performance**: Workers e threads otimizados para diferentes ambientes
+- **Logging**: Logs estruturados compatíveis com OpenTelemetry
+- **Hooks**: Hooks para monitoramento e debugging
+- **Compatibilidade**: Suporte a WSGI e ASGI
+
+#### Variáveis de Ambiente para Gunicorn
+
+```bash
+# Configurações básicas
+GUNICORN_BIND=0.0.0.0:8000
+GUNICORN_WORKERS=4
+GUNICORN_THREADS=2
+GUNICORN_WORKER_CLASS=sync
+
+# Configurações de performance
+GUNICORN_TIMEOUT=30
+GUNICORN_KEEPALIVE=5
+GUNICORN_MAX_REQUESTS=1000
+GUNICORN_MAX_REQUESTS_JITTER=100
+
+# Configurações de logging
+GUNICORN_LOG_LEVEL=info
+GUNICORN_ACCESS_LOG=-
+GUNICORN_ERROR_LOG=-
+
+# Configurações específicas para ASGI
+GUNICORN_WORKER_CLASS=uvicorn.workers.UvicornWorker
+GUNICORN_ASGI_OPTIMIZED=true
+```
+
 ### Documentação Completa
 
-Para documentação detalhada sobre o script de entrypoint, consulte [ENTRYPOINT.md](ENTRYPOINT.md).
+Para documentação detalhada sobre os scripts de inicialização, consulte:
+- [ENTRYPOINT.md](ENTRYPOINT.md) - Documentação do script de entrypoint
+- [EXAMPLES.md](EXAMPLES.md) - Exemplos de uso e integração
 
 ## 🐳 Integração com Docker
 
-### Dockerfile Exemplo com Entrypoint
+### Dockerfile Exemplo com Entrypoint e Gunicorn Config
 
 ```dockerfile
 FROM python:3.9-slim
@@ -530,14 +587,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código da aplicação
 COPY . .
 
-# Copiar script de entrypoint
+# Copiar scripts de inicialização
 COPY entrypoint.sh /usr/local/bin/
+COPY gunicorn.config.py /app/
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Variáveis de ambiente para produção
 ENV DJANGO_CORALOGIX_AUTO_INIT=true
 ENV OTEL_LOG_LEVEL=INFO
 ENV DJANGO_DEBUG=False
+ENV GUNICORN_CONFIG="--config gunicorn.config.py myproject.wsgi:application"
 
 # Expor porta
 EXPOSE 8000
@@ -545,6 +604,39 @@ EXPOSE 8000
 # Usar entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["gunicorn"]
+```
+
+### Dockerfile com Configuração Avançada do Gunicorn
+
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Instalar dependências
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código da aplicação
+COPY . .
+
+# Copiar configuração do Gunicorn
+COPY gunicorn.config.py /app/
+
+# Variáveis de ambiente para produção otimizada
+ENV DJANGO_CORALOGIX_AUTO_INIT=true
+ENV OTEL_LOG_LEVEL=INFO
+ENV DJANGO_DEBUG=False
+ENV GUNICORN_WORKERS=8
+ENV GUNICORN_THREADS=4
+ENV GUNICORN_MAX_REQUESTS=2000
+ENV GUNICORN_TIMEOUT=60
+
+# Expor porta
+EXPOSE 8000
+
+# Comando de inicialização com auto-instrumentação
+CMD ["opentelemetry-instrument", "gunicorn", "--config", "gunicorn.config.py", "myproject.wsgi:application"]
 ```
 
 ### Dockerfile Tradicional (sem entrypoint)

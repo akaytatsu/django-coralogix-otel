@@ -103,13 +103,21 @@ run_gunicorn() {
     echo "Endpoint: $OTEL_EXPORTER_OTLP_ENDPOINT"
     echo "Environment: $APP_ENVIRONMENT"
     echo "Strategy: Hybrid (auto-instrumentation + manual)"
+    echo "Gunicorn Config: $GUNICORN_CONFIG"
 
     # Executar setup do Django antes de iniciar o servidor
     setup_django
 
     # Configurar Gunicorn com opções padrão se não especificadas
     if [ -z "$GUNICORN_CONFIG" ]; then
-        export GUNICORN_CONFIG="--bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 60"
+        # Verificar se existe arquivo de configuração do Gunicorn
+        if [ -f "gunicorn.config.py" ]; then
+            echo "Using gunicorn.config.py configuration file"
+            export GUNICORN_CONFIG="--config gunicorn.config.py conf.wsgi:application"
+        else
+            echo "Using default Gunicorn configuration"
+            export GUNICORN_CONFIG="--bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 60"
+        fi
     fi
 
     exec opentelemetry-instrument gunicorn $GUNICORN_CONFIG

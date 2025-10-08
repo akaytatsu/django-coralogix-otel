@@ -3,9 +3,11 @@ include README.md
 include LICENSE
 include CHANGELOG.md
 include ENTRYPOINT.md
+include GUNICORN.md
 
-# Incluir script de entrypoint
+# Incluir scripts de inicialização
 include entrypoint.sh
+include gunicorn.config.py
 
 # Incluir arquivos de configuração
 include pyproject.toml

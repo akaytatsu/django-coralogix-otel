@@ -10,8 +10,9 @@ Este arquivo contém exemplos detalhados de uso do pacote `django-coralogix-otel
 3. [Uso em Views](#uso-em-views)
 4. [Configuração Kubernetes](#configuração-kubernetes)
 5. [Desenvolvimento Local](#desenvolvimento-local)
-6. [Testes e Validação](#testes-e-validação)
-7. [Troubleshooting](#troubleshooting)
+6. [Scripts de Inicialização](#scripts-de-inicialização)
+7. [Testes e Validação](#testes-e-validação)
+8. [Troubleshooting](#troubleshooting)
 
 ## 🔧 Configuração Básica
 
@@ -481,9 +482,118 @@ if __name__ == "__main__":
     test_configuration()
 ```
 
+## 🐳 Scripts de Inicialização
+
+### Exemplo 13: Uso do Entrypoint Script
+
+```bash
+# Executar com Gunicorn (produção)
+./entrypoint.sh gunicorn
+
+# Executar com Django Development Server
+./entrypoint.sh runserver
+
+# Executar setup (migrations, collectstatic)
+./entrypoint.sh setup
+
+# Executar comandos Django
+./entrypoint.sh manage.py migrate
+./entrypoint.sh manage.py shell
+
+# Executar scripts Python
+./entrypoint.sh python my_script.py
+```
+
+### Exemplo 14: Configuração do Gunicorn
+
+```python
+# gunicorn.config.py - Configuração otimizada para OpenTelemetry
+import os
+import multiprocessing
+
+# Configurações básicas
+bind = os.getenv("GUNICORN_BIND", "0.0.0.0:8000")
+workers = int(os.getenv("GUNICORN_WORKERS", multiprocessing.cpu_count() * 2 + 1))
+threads = int(os.getenv("GUNICORN_THREADS", 2))
+worker_class = os.getenv("GUNICORN_WORKER_CLASS", "sync")
+
+# Configurações de performance
+timeout = int(os.getenv("GUNICORN_TIMEOUT", 30))
+max_requests = int(os.getenv("GUNICORN_MAX_REQUESTS", 1000))
+
+# Hooks para OpenTelemetry
+def when_ready(server):
+    server.log.info("Gunicorn ready with OpenTelemetry")
+    if os.environ.get("OTEL_PYTHON_INSTRUMENTATION_ENABLED"):
+        server.log.info("✅ OpenTelemetry auto-instrumentation enabled")
+
+def post_fork(server, worker):
+    server.log.info(f"Worker spawned (pid: {worker.pid})")
+```
+
+### Exemplo 15: Docker com Scripts de Inicialização
+
+```dockerfile
+# Dockerfile com entrypoint e gunicorn config
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Instalar dependências
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código da aplicação
+COPY . .
+
+# Copiar scripts de inicialização
+COPY entrypoint.sh /usr/local/bin/
+COPY gunicorn.config.py /app/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Variáveis de ambiente
+ENV DJANGO_CORALOGIX_AUTO_INIT=true
+ENV OTEL_LOG_LEVEL=INFO
+ENV DJANGO_DEBUG=False
+ENV GUNICORN_CONFIG="--config gunicorn.config.py myproject.wsgi:application"
+
+EXPOSE 8000
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["gunicorn"]
+```
+
+### Exemplo 16: Kubernetes com Scripts
+
+```yaml
+# k8s/deployment.yaml com scripts
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-app
+spec:
+  template:
+    spec:
+      containers:
+      - name: django-app
+        image: my-django-app:latest
+        command: ["/usr/local/bin/entrypoint.sh"]
+        args: ["gunicorn"]
+        envFrom:
+        - configMapRef:
+            name: django-opentelemetry
+        env:
+        - name: GUNICORN_WORKERS
+          value: "4"
+        - name: GUNICORN_THREADS
+          value: "2"
+        - name: GUNICORN_CONFIG
+          value: "--config gunicorn.config.py myproject.wsgi:application"
+```
+
 ## 🧪 Testes e Validação
 
-### Exemplo 13: Testes Unitários
+### Exemplo 17: Testes Unitários
 
 ```python
 # tests/test_opentelemetry.py

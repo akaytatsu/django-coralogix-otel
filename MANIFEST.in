@@ -1,9 +1,0 @@
-include README.md
-include LICENSE
-include requirements.txt
-include .env.example
-recursive-include django_coralogix_otel *.py
-recursive-include scripts *
-global-exclude *.pyc
-global-exclude __pycache__
-global-exclude .DS_Store

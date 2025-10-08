@@ -8,7 +8,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name="django-coralogix-otel",
-    version="1.0.8",
+    version="1.0.10",
     author="Thiago Freitas",
     author_email="thiagosistemas3@gmail.com",
     description="Pacote Django para integração simplificada de OpenTelemetry com Coralogix",

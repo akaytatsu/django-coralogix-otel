@@ -53,6 +53,7 @@ class JSONFormatterWithTrace(logging.Formatter):
             log_entry["request_id"] = record.request_id
 
         import json
+
         return json.dumps(log_entry)
 
 
@@ -63,26 +64,25 @@ def setup_json_logging():
         formatter = JSONFormatterWithTrace()
         handler = logging.StreamHandler()
         handler.setFormatter(formatter)
-        
+
         # Configure root logger
         root_logger = logging.getLogger()
-        
+
         # Avoid duplicate handlers
         for existing_handler in root_logger.handlers:
-            if isinstance(existing_handler, logging.StreamHandler) and hasattr(existing_handler, 'setFormatter'):
+            if isinstance(existing_handler, logging.StreamHandler) and hasattr(existing_handler, "setFormatter"):
                 if isinstance(existing_handler.formatter, JSONFormatterWithTrace):
                     # Already configured
                     return
-        
+
         root_logger.addHandler(handler)
         root_logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
-        
+
         print("JSON logging with trace context configured successfully")
-        
+
     except Exception as e:
         print(f"Failed to setup JSON logging: {e}")
         # Fallback to basic logging
         logging.basicConfig(
-            level=os.getenv("LOG_LEVEL", "INFO"),
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )

@@ -11,7 +11,12 @@ class DjangoCoralogixOtelConfig(AppConfig):
 
     def ready(self):
         """Initialize OpenTelemetry when Django app is ready."""
-        # Only configure if not running with opentelemetry-instrument
+        # Always configure logging, regardless of instrumentation method
+        from .otel_config import setup_logging_format
+
+        setup_logging_format()
+
+        # Only configure tracing/metrics if not running with opentelemetry-instrument
         if not os.getenv("OTEL_PYTHON_INSTRUMENTATION_ENABLED"):
             from .otel_config import configure_opentelemetry
 

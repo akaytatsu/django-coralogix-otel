@@ -158,9 +158,10 @@ def setup_logging_format():
     try:
         # Use the simplified logging setup
         from .simple_logging import setup_json_logging
+
         setup_json_logging()
         logger.info("Simplified JSON logging configured")
-        
+
     except Exception as e:
         logger.error(f"Failed to setup logging format: {e}")
         # Final fallback - configure basic JSON logging directly
@@ -169,12 +170,12 @@ def setup_logging_format():
             handler = logging.StreamHandler()
             handler.setFormatter(formatter)
             root_logger = logging.getLogger()
-            
+
             # Check if already configured to avoid duplicates
             for h in root_logger.handlers:
                 if isinstance(h, logging.StreamHandler) and isinstance(h.formatter, JSONFormatterWithTrace):
                     return
-                    
+
             root_logger.addHandler(handler)
             logger.info("Basic JSON logging configured as final fallback")
         except Exception as final_error:
@@ -204,3 +205,7 @@ def configure_opentelemetry():
 # This allows the module to work both with auto-instrumentation and manual setup
 if not os.getenv("OTEL_PYTHON_INSTRUMENTATION_ENABLED"):
     configure_opentelemetry()
+else:
+    # When running with opentelemetry-instrument, only setup logging
+    # to avoid interfering with Django's initialization
+    setup_logging_format()

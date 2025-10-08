@@ -90,6 +90,9 @@ setup(
             "django-coralogix-init=django_coralogix_otel.entrypoint:initialize_opentelemetry",
         ],
     },
+    scripts=[
+        "entrypoint.sh",
+    ],
     include_package_data=True,
     zip_safe=False,
     keywords=[

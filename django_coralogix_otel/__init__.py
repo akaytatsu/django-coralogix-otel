@@ -6,7 +6,7 @@ para aplicações Django. Implementa estratégia híbrida (auto-instrumentação
 com suporte completo às variáveis de ambiente do Kubernetes.
 """
 
-__version__ = "1.0.33"
+__version__ = "1.0.34"
 __author__ = "Thiago Freitas"
 __email__ = "thiagosistemas3@gmail.com"
 

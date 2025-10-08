@@ -113,10 +113,10 @@ run_gunicorn() {
         # Verificar se existe arquivo de configuração do Gunicorn
         if [ -f "gunicorn.config.py" ]; then
             echo "Using gunicorn.config.py configuration file"
-            export GUNICORN_CONFIG="--config gunicorn.config.py conf.wsgi:application"
+            export GUNICORN_CONFIG="--config gunicorn.config.py conf.asgi:application"
         else
             echo "Using default Gunicorn configuration"
-            export GUNICORN_CONFIG="--bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 60"
+            export GUNICORN_CONFIG=" conf.asgi:application -b 0.0.0.0:8080 --access-logfile - --error-logfile - --log-level warning -k uvicorn.workers.UvicornWorker"
         fi
     fi
 

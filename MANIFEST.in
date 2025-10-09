@@ -4,6 +4,7 @@ include requirements.txt
 include .env.example
 include gunicorn.config.py
 include entrypoint.sh
+include django_coralogix_otel/gunicorn_config.py
 recursive-include django_coralogix_otel *.py
 recursive-include scripts *
 global-exclude *.pyc

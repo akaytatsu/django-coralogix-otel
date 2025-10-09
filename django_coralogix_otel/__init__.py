@@ -17,19 +17,37 @@ def get_gunicorn_config_path():
     import sys
     import tempfile
     import os
-
-    # Tentar encontrar o arquivo no pacote
+    
+    # Debug: mostrar onde está o pacote
     package_dir = os.path.dirname(django_coralogix_otel.__file__)
+    print(f"DEBUG: Package directory: {package_dir}", file=sys.stderr)
+    
+    # Tentar encontrar o arquivo no pacote
     config_path = os.path.join(package_dir, 'gunicorn_config.py')
-
+    print(f"DEBUG: Looking for config at: {config_path}", file=sys.stderr)
+    print(f"DEBUG: Config exists: {os.path.exists(config_path)}", file=sys.stderr)
+    
     if os.path.exists(config_path):
         return config_path
-
+    
     # Tentar encontrar no local original (desenvolvimento)
     original_path = os.path.normpath(os.path.join(package_dir, '..', 'gunicorn.config.py'))
+    print(f"DEBUG: Looking for original config at: {original_path}", file=sys.stderr)
+    print(f"DEBUG: Original config exists: {os.path.exists(original_path)}", file=sys.stderr)
+    
     if os.path.exists(original_path):
         return original_path
-
+    
+    # Listar arquivos no diretório do pacote para debug
+    print(f"DEBUG: Files in package directory:", file=sys.stderr)
+    try:
+        files = os.listdir(package_dir)
+        for f in files:
+            if 'gunicorn' in f.lower():
+                print(f"DEBUG: Found file: {f}", file=sys.stderr)
+    except Exception as e:
+        print(f"DEBUG: Error listing files: {e}", file=sys.stderr)
+    
     # Se não encontrar em nenhum lugar, criar um arquivo temporário
     try:
         config_content = """
@@ -61,9 +79,11 @@ def when_ready(server):
         temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False)
         temp_file.write(config_content)
         temp_file.close()
+        print(f"DEBUG: Created temp config at: {temp_file.name}", file=sys.stderr)
         return temp_file.name
     except Exception as e:
-        print(f"DEBUG: Erro ao criar config temporário: {e}", file=sys.stderr)
+        print(f"DEBUG: Error creating temp config: {e}", file=sys.stderr)
         pass
 
+    print("DEBUG: Returning None", file=sys.stderr)
     return None

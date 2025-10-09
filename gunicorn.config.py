@@ -9,7 +9,7 @@ import os
 bind = os.getenv("GUNICORN_BIND", "0.0.0.0:8080")
 workers = int(os.getenv("GUNICORN_WORKERS", multiprocessing.cpu_count() * 2 + 1))
 threads = int(os.getenv("GUNICORN_THREADS", 2))
-worker_class = os.getenv("GUNICORN_WORKER_CLASS", "sync")
+worker_class = os.getenv("GUNICORN_WORKER_CLASS", "uvicorn.workers.UvicornWorker")
 
 # Configurações de performance
 timeout = int(os.getenv("GUNICORN_TIMEOUT", 30))
@@ -150,3 +150,6 @@ def on_starting(server):
 
 # Configurações de worker específicas
 worker_tmp_dir = os.getenv("GUNICORN_WORKER_TMP_DIR", "/dev/shm")
+
+# Application ASGI (necessário para workers ASGI)
+application = os.getenv("DJANGO_ASGI_APPLICATION", "asgi:application")

@@ -112,6 +112,7 @@ run_gunicorn() {
     echo "Endpoint: $OTEL_EXPORTER_OTLP_ENDPOINT"
     echo "Environment: $APP_ENVIRONMENT"
     echo "Strategy: Hybrid (auto-instrumentation + manual)"
+    echo "Hello Gunicorn!"
     echo "Gunicorn Config: $GUNICORN_CONFIG"
 
     # Executar setup do Django antes de iniciar o servidor

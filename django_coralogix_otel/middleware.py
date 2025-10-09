@@ -33,7 +33,7 @@ class OpenTelemetryMiddleware:
             # Add Django-specific attributes
             current_span.set_attribute("django.user.id", self.get_user_id(request))
             current_span.set_attribute("django.user.username", self.get_username(request))
-            current_span.set_attribute("django.session.id", request.session.session_key or "")
+            current_span.set_attribute("django.session.id", self.get_session_id(request))
 
         response = self.get_response(request)
 
@@ -66,6 +66,15 @@ class OpenTelemetryMiddleware:
         try:
             if hasattr(request, "user") and request.user.is_authenticated:
                 return request.user.get_username()
+        except Exception:
+            pass
+        return ""
+
+    def get_session_id(self, request):
+        """Get session ID from request if available."""
+        try:
+            if hasattr(request, "session") and hasattr(request.session, "session_key"):
+                return request.session.session_key or ""
         except Exception:
             pass
         return ""

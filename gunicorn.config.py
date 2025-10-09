@@ -27,13 +27,16 @@ limit_request_line = int(os.getenv("GUNICORN_LIMIT_REQUEST_LINE", 4094))
 limit_request_fields = int(os.getenv("GUNICORN_LIMIT_REQUEST_FIELDS", 100))
 limit_request_field_size = int(os.getenv("GUNICORN_LIMIT_REQUEST_FIELD_SIZE", 8190))
 
-# Configurações específicas para ASGI (se necessário)
+# Configurações específicas para ASGI
 if worker_class == "uvicorn.workers.UvicornWorker":
     # Configurações específicas para ASGI
     worker_connections = int(os.getenv("GUNICORN_WORKER_CONNECTIONS", 1000))
     # Para ASGI, ajustar workers baseado na memória disponível
     if os.getenv("GUNICORN_ASGI_OPTIMIZED") == "true":
         workers = min(workers, 4)  # ASGI geralmente usa menos workers
+
+# Application module para ASGI
+application = os.getenv("GUNICORN_APPLICATION", "conf.asgi:application")
 
 # Configurações de preload para melhor performance
 preload_app = os.getenv("GUNICORN_PRELOAD_APP", "false").lower() == "true"
@@ -150,6 +153,3 @@ def on_starting(server):
 
 # Configurações de worker específicas
 worker_tmp_dir = os.getenv("GUNICORN_WORKER_TMP_DIR", "/dev/shm")
-
-# Application ASGI (necessário para workers ASGI)
-application = os.getenv("DJANGO_ASGI_APPLICATION", "asgi:application")

@@ -45,7 +45,11 @@ setup(
     },
     scripts=[
         "scripts/entrypoint.sh",
+        "scripts/setup_gunicorn_config.sh",
     ],
     include_package_data=True,
+    data_files=[
+        ("", ["gunicorn.config.py"]),
+    ],
     zip_safe=False,
 )

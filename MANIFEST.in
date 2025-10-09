@@ -2,6 +2,8 @@ include README.md
 include LICENSE
 include requirements.txt
 include .env.example
+include gunicorn.config.py
+include entrypoint.sh
 recursive-include django_coralogix_otel *.py
 recursive-include scripts *
 global-exclude *.pyc

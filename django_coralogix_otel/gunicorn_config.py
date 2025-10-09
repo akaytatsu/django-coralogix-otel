@@ -9,7 +9,7 @@ import os
 bind = os.getenv("GUNICORN_BIND", "0.0.0.0:8080")
 workers = int(os.getenv("GUNICORN_WORKERS", multiprocessing.cpu_count() * 2 + 1))
 threads = int(os.getenv("GUNICORN_THREADS", 2))
-worker_class = os.getenv("GUNICORN_WORKER_CLASS", "sync")
+worker_class = os.getenv("GUNICORN_WORKER_CLASS", "uvicorn.workers.UvicornWorker")
 
 # Configurações de performance
 timeout = int(os.getenv("GUNICORN_TIMEOUT", 30))
@@ -27,13 +27,16 @@ limit_request_line = int(os.getenv("GUNICORN_LIMIT_REQUEST_LINE", 4094))
 limit_request_fields = int(os.getenv("GUNICORN_LIMIT_REQUEST_FIELDS", 100))
 limit_request_field_size = int(os.getenv("GUNICORN_LIMIT_REQUEST_FIELD_SIZE", 8190))
 
-# Configurações específicas para ASGI (se necessário)
+# Configurações específicas para ASGI
 if worker_class == "uvicorn.workers.UvicornWorker":
     # Configurações específicas para ASGI
     worker_connections = int(os.getenv("GUNICORN_WORKER_CONNECTIONS", 1000))
     # Para ASGI, ajustar workers baseado na memória disponível
     if os.getenv("GUNICORN_ASGI_OPTIMIZED") == "true":
         workers = min(workers, 4)  # ASGI geralmente usa menos workers
+
+# Application module para ASGI
+application = os.getenv("GUNICORN_APPLICATION", "conf.asgi:application")
 
 # Configurações de preload para melhor performance
 preload_app = os.getenv("GUNICORN_PRELOAD_APP", "false").lower() == "true"

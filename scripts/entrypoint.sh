@@ -10,13 +10,13 @@ echo "=== Django Coralogix OpenTelemetry Entrypoint ==="
 echo "Starting Django application with OpenTelemetry instrumentation..."
 
 # Instalar dependências do projeto
-echo "Installing project dependencies..."
-if [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt
-    echo "Dependencies installed successfully!"
-else
-    echo "Warning: requirements.txt not found, skipping dependency installation"
-fi
+# echo "Installing project dependencies..."
+# if [ -f "requirements.txt" ]; then
+#     pip install -r requirements.txt
+#     echo "Dependencies installed successfully!"
+# else
+#     echo "Warning: requirements.txt not found, skipping dependency installation"
+# fi
 
 # Verificar se as variáveis de ambiente necessárias estão definidas
 if [ -z "$OTEL_SERVICE_NAME" ]; then

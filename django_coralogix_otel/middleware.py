@@ -9,7 +9,7 @@ from opentelemetry import trace
 logger = logging.getLogger(__name__)
 
 
-class TraceMiddleware:
+class OpenTelemetryMiddleware:
     """
     Middleware to enhance trace context with additional information.
     """
@@ -69,3 +69,7 @@ class TraceMiddleware:
         except Exception:
             pass
         return ""
+
+
+# Manter o nome antigo para compatibilidade
+TraceMiddleware = OpenTelemetryMiddleware

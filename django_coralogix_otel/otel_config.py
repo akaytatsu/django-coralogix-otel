@@ -152,6 +152,38 @@ def setup_instrumentation():
     logger.info("Instrumentations handled by OpenTelemetry SDK environment variables")
 
 
+def verify_traces_health():
+    """Verifica se traces estão funcionando corretamente."""
+    try:
+        from opentelemetry import trace
+
+        tracer = trace.get_tracer("health-check")
+
+        with tracer.start_as_current_span("otel-health-check") as span:
+            span.set_attribute("health.check", "success")
+            span.set_attribute("otel.version", getattr(trace, "__version__", "unknown"))
+            return True
+
+    except Exception as e:
+        logger.error(f"❌ OpenTelemetry health check failed: {e}")
+        return False
+
+
+def verify_metrics_health():
+    """Verifica se métricas estão funcionando."""
+    try:
+        from opentelemetry import metrics
+
+        meter = metrics.get_meter("health-check")
+        counter = meter.create_counter("health.check.counter")
+        counter.add(1, {"status": "ok", "component": "django-coralogix-otel"})
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Metrics health check failed: {e}")
+        return False
+
+
 def setup_logging_format():
     """Setup JSON logging format with trace context - using simplified approach."""
     try:
@@ -199,6 +231,14 @@ def configure_opentelemetry():
             logger.info("OpenTelemetry configured via auto-instrumentation")
             # Still setup logging format even with auto-instrumentation
             setup_logging_format()
+
+        # Verificação de saúde das integrações
+        if not verify_traces_health():
+            logger.warning("⚠️ Traces verification failed - check configuration")
+
+        if not verify_metrics_health():
+            logger.warning("⚠️ Metrics verification failed - check configuration")
+
     except Exception as e:
         logger.error(f"Failed to configure OpenTelemetry: {e}")
         # Don't raise exceptions to avoid breaking Django startup

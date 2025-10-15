@@ -32,6 +32,4 @@ def post_fork(server, worker):
     if os.environ.get("OTEL_PYTHON_INSTRUMENTATION_ENABLED"):
         server.log.info("OpenTelemetry auto-instrumentation detected")
     else:
-        server.log.info(
-            "OpenTelemetry manual configuration will be handled by Django settings"
-        )
+        server.log.info("OpenTelemetry manual configuration will be handled by Django settings")

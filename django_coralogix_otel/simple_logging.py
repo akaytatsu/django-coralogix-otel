@@ -58,22 +58,19 @@ class JSONFormatterWithTrace(logging.Formatter):
 
 
 def setup_json_logging():
-    """Setup JSON logging with trace context - simplified approach."""
+    """Setup JSON logging com OpenTelemetry - versão segura."""
     try:
-        # Create formatter and handler directly
-        formatter = JSONFormatterWithTrace()
-        handler = logging.StreamHandler()
-        handler.setFormatter(formatter)
-
-        # Configure root logger
         root_logger = logging.getLogger()
 
-        # Avoid duplicate handlers
-        for existing_handler in root_logger.handlers:
-            if isinstance(existing_handler, logging.StreamHandler) and hasattr(existing_handler, "setFormatter"):
-                if isinstance(existing_handler.formatter, JSONFormatterWithTrace):
-                    # Already configured
-                    return
+        # Remover handlers existentes para evitar duplicatas
+        for handler in root_logger.handlers[:]:
+            if isinstance(handler, logging.StreamHandler):
+                root_logger.removeHandler(handler)
+
+        # Configurar novo handler JSON
+        handler = logging.StreamHandler()
+        formatter = JSONFormatterWithTrace()
+        handler.setFormatter(formatter)
 
         root_logger.addHandler(handler)
         root_logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
@@ -81,8 +78,9 @@ def setup_json_logging():
         print("JSON logging with trace context configured successfully")
 
     except Exception as e:
-        print(f"Failed to setup JSON logging: {e}")
-        # Fallback to basic logging
+        # Fallback para logging básico se JSON falhar
         logging.basicConfig(
             level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
+        logger = logging.getLogger(__name__)
+        logger.error(f"❌ JSON logging setup failed: {e}")

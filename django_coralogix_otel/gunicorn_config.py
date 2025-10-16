@@ -2,7 +2,7 @@
 import os
 
 # Configurações do Gunicorn
-bind = "0.0.0.0:8080"
+bind = os.getenv("GUNICORN_BIND", "0.0.0.0:8080")
 workers = 2
 threads = 2
 worker_class = os.getenv("GUNICORN_WORKER_CLASS", "uvicorn.workers.UvicornWorker")  # Use UvicornWorker for ASGI

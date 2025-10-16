@@ -120,10 +120,21 @@ run_gunicorn() {
 
     # Configurar Gunicorn com opções padrão se não especificadas
     if [ -z "$GUNICORN_CONFIG" ]; then
+        # Detectar automaticamente se existe ASGI ou usar WSGI como fallback
+        if [ -z "$GUNICORN_APPLICATION" ]; then
+            if [ -f "main/asgi.py" ] || [ -f "conf/asgi.py" ] || [ -f "asgi.py" ]; then
+                export GUNICORN_APPLICATION="main.asgi:application"
+                echo "ASGI application detected, using: $GUNICORN_APPLICATION"
+            else
+                export GUNICORN_APPLICATION="main.wsgi:application"
+                echo "WSGI application detected (no ASGI found), using: $GUNICORN_APPLICATION"
+            fi
+        fi
+
         # Verificar se existe arquivo de configuração do Gunicorn local
         if [ -f "gunicorn.config.py" ]; then
             echo "Using local gunicorn.config.py configuration file"
-            export GUNICORN_CONFIG="--config gunicorn.config.py conf.asgi:application"
+            export GUNICORN_CONFIG="--config gunicorn.config.py $GUNICORN_APPLICATION"
         else
             # Tentar encontrar o arquivo na biblioteca instalada
             echo "Local gunicorn.config.py not found, searching in django-coralogix-otel library..."
@@ -146,10 +157,10 @@ except Exception as e:
 
             if [ $? -eq 0 ] && [ -n "$library_config" ] && [ -f "$library_config" ]; then
                 echo "Using django-coralogix-otel library gunicorn.config.py: $library_config"
-                export GUNICORN_CONFIG="--config $library_config conf.asgi:application"
+                export GUNICORN_CONFIG="--config $library_config $GUNICORN_APPLICATION"
             else
                 echo "gunicorn.config.py not found in library, using default Gunicorn configuration"
-                export GUNICORN_CONFIG=" conf.asgi:application -b 0.0.0.0:8080 --access-logfile - --error-logfile - --log-level warning -k uvicorn.workers.UvicornWorker"
+                export GUNICORN_CONFIG=" $GUNICORN_APPLICATION -b 0.0.0.0:8080 --access-logfile - --error-logfile - --log-level warning"
             fi
         fi
     fi

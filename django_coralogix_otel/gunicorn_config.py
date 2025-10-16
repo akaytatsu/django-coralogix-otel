@@ -5,14 +5,15 @@ import os
 bind = "0.0.0.0:8080"
 workers = 2
 threads = 2
-worker_class = "uvicorn.workers.UvicornWorker"  # Use UvicornWorker for ASGI
+worker_class = os.getenv("GUNICORN_WORKER_CLASS", "uvicorn.workers.UvicornWorker")  # Use UvicornWorker for ASGI
 timeout = 30
 keepalive = 5
 max_requests = 1000
 max_requests_jitter = 100
 
 # Application
-application = "conf.asgi:application"  # Use ASGI application
+import os
+application = os.getenv("GUNICORN_APPLICATION", "conf.asgi:application")  # Use ASGI/WSGI application based on environment variable
 
 # Logs
 access_logfile = "-"

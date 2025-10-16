@@ -72,6 +72,9 @@ accesslog = os.getenv("GUNICORN_ACCESS_LOG", "-")
 errorlog = os.getenv("GUNICORN_ERROR_LOG", "-")
 loglevel = os.getenv("GUNICORN_LOG_LEVEL", "info")
 
+# Application module - respeitar variável de ambiente
+application = os.getenv("GUNICORN_APPLICATION", "conf.asgi:application")
+
 def when_ready(server):
     server.log.info("Gunicorn ready with django-coralogix-otel")
 """

@@ -120,15 +120,10 @@ run_gunicorn() {
 
     # Configurar Gunicorn com opções padrão se não especificadas
     if [ -z "$GUNICORN_CONFIG" ]; then
-        # Detectar automaticamente se existe ASGI ou usar WSGI como fallback
+        # Definir valor padrão para GUNICORN_APPLICATION se não estiver setada
         if [ -z "$GUNICORN_APPLICATION" ]; then
-            if [ -f "conf/asgi.py" ] || [ -f "asgi.py" ]; then
-                export GUNICORN_APPLICATION="conf.asgi:application"
-                echo "ASGI application detected, using: $GUNICORN_APPLICATION"
-            else
-                export GUNICORN_APPLICATION="main.wsgi:application"
-                echo "WSGI application detected (no ASGI found), using: $GUNICORN_APPLICATION"
-            fi
+            export GUNICORN_APPLICATION="conf.asgi:application"
+            echo "GUNICORN_APPLICATION not set, using default: $GUNICORN_APPLICATION"
         fi
 
         # Verificar se existe arquivo de configuração do Gunicorn local

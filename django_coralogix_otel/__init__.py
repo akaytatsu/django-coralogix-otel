@@ -2,7 +2,7 @@
 Django Coralogix OpenTelemetry Package
 """
 
-__version__ = "1.0.57"
+__version__ = "1.0.61"
 default_app_config = "django_coralogix_otel.apps.DjangoCoralogixOtelConfig"
 
 import os

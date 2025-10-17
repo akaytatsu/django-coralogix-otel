@@ -122,8 +122,8 @@ run_gunicorn() {
     if [ -z "$GUNICORN_CONFIG" ]; then
         # Detectar automaticamente se existe ASGI ou usar WSGI como fallback
         if [ -z "$GUNICORN_APPLICATION" ]; then
-            if [ -f "main/asgi.py" ] || [ -f "conf/asgi.py" ] || [ -f "asgi.py" ]; then
-                export GUNICORN_APPLICATION="main.asgi:application"
+            if [ -f "conf/asgi.py" ] || [ -f "asgi.py" ]; then
+                export GUNICORN_APPLICATION="conf.asgi:application"
                 echo "ASGI application detected, using: $GUNICORN_APPLICATION"
             else
                 export GUNICORN_APPLICATION="main.wsgi:application"
